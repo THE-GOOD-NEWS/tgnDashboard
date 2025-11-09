@@ -21,7 +21,7 @@ import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import axios from "axios";
 import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
-import { lifeyFont, thirdFont } from "@/app/lib/fonts";
+import { subHeaderFont, headerFont } from "@/app/lib/fonts";
 // import { useToast } from '@/hooks/use-toast';
 // import CartItemSmall from '../cart/CartItemSmall';
 // import { useAuth } from '@/hooks/useAuth';
@@ -333,7 +333,7 @@ export default function AccountPage() {
               )}
               <div className="min-w-0 flex-1">
                 <h1
-                  className={`break-words text-2xl font-bold tracking-normal text-primary sm:text-4xl ${thirdFont.className}`}
+                  className={`break-words text-2xl font-bold tracking-normal text-primary sm:text-4xl ${headerFont.className}`}
                 >
                   {user.name}
                 </h1>

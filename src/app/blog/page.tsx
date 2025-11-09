@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Link from "next/link";
-import { thirdFont } from "@/app/lib/fonts";
+import { headerFont } from "@/app/lib/fonts";
 import Image from "next/image";
 
 interface Blog {
@@ -125,7 +125,7 @@ const BlogListPage = () => {
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1
-              className={`${thirdFont.className} mb-4 text-4xl font-bold text-gray-900`}
+              className={`${headerFont.className} mb-4 text-4xl font-bold text-gray-900`}
             >
               Our Blog
             </h1>

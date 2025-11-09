@@ -3,7 +3,7 @@
 import { ApexOptions } from "apexcharts";
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { thirdFont } from "@/app/lib/fonts";
+import { headerFont } from "@/app/lib/fonts";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
@@ -108,7 +108,8 @@ const options: ApexOptions = {
 const ChartOne: React.FC = () => {
   const [series, setSeries] = useState<{ name: string; data: number[] }[]>([
     { name: "Orders", data: new Array(12).fill(0) },
-  ]);  const [categories, setCategories] = useState<string[]>([]);
+  ]);
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -118,7 +119,7 @@ const ChartOne: React.FC = () => {
 
         if (response.ok) {
           const orders = result.data;
-          console.log("orders"+orders)
+          console.log("orders" + orders);
 
           // Prepare last 11 months' labels
           const now = new Date();
@@ -135,17 +136,20 @@ const ChartOne: React.FC = () => {
           // Aggregate orders by month
           orders.forEach((order: any) => {
             const orderDate = new Date(order.createdAt);
-            const monthLabel = orderDate.toLocaleString("en-US", { month: "short" });
+            const monthLabel = orderDate.toLocaleString("en-US", {
+              month: "short",
+            });
 
             if (monthlyTotals.hasOwnProperty(monthLabel)) {
-              
-              monthlyTotals[monthLabel] +=  order.subTotal; // Sum up order totals
+              monthlyTotals[monthLabel] += order.subTotal; // Sum up order totals
             }
           });
 
           // Update chart
           setCategories(months);
-          setSeries([{ name: "Orders", data: months.map((m) => monthlyTotals[m] || 0) }]);
+          setSeries([
+            { name: "Orders", data: months.map((m) => monthlyTotals[m] || 0) },
+          ]);
         } else {
           console.error("Error fetching orders:", result.error);
         }
@@ -158,7 +162,7 @@ const ChartOne: React.FC = () => {
   }, []);
 
   return (
-    <div className="col-span-12  border rounded-2xl border-stroke bg-white px-5 pb-5 pt-7.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 ">
+    <div className="col-span-12  rounded-2xl border border-stroke bg-white px-5 pb-5 pt-7.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 ">
       <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap">
         <div className="flex w-full flex-wrap gap-3 sm:gap-5">
           <div className="flex min-w-47.5">
@@ -166,7 +170,11 @@ const ChartOne: React.FC = () => {
               <span className="block h-2.5 w-full max-w-2.5 rounded-full bg-secondary"></span>
             </span>
             <div className="w-full">
-              <p className={`${thirdFont.className} text-2xl tracking-normal font-semibold text-secondary`}>Monthly sales</p>
+              <p
+                className={`${headerFont.className} text-2xl font-semibold tracking-normal text-secondary`}
+              >
+                Monthly sales
+              </p>
             </div>
           </div>
         </div>

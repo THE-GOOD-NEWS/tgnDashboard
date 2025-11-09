@@ -1,5 +1,5 @@
 "use client";
-import { thirdFont } from "@/app/lib/fonts";
+import { headerFont } from "@/app/lib/fonts";
 import BlogModal from "@/components/BlogModal";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import axios from "axios";
@@ -112,7 +112,7 @@ const BlogsPage = () => {
         {/* Header */}
         <div className="flex w-[97%] items-center justify-between text-primary">
           <h1
-            className={`${thirdFont.className} text-3xl font-semibold text-secondary`}
+            className={`${headerFont.className} text-3xl font-semibold text-secondary`}
           >
             Blog Management
           </h1>

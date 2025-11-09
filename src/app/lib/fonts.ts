@@ -1,14 +1,13 @@
 // src/lib/fonts.ts
 import localFont from "next/font/local";
 
-
-export const wifeyFont = localFont({
-  src: "../fonts/AcuminVariableConcept.otf",
+export const bodyFont = localFont({
+  src: "../fonts/VisbyRegular.otf",
 });
 
-export const lifeyFont = localFont({
-  src: '../fonts/Nickainley.otf',
-}) 
-export const thirdFont = localFont({
-  src: '../fonts/BebasNeue-Regular.ttf',
-}) 
+export const subHeaderFont = localFont({
+  src: "../fonts/Bitend Mono.ttf",
+});
+export const headerFont = localFont({
+  src: "../fonts/HelveticaNeue-HeavyCondObl.otf",
+});

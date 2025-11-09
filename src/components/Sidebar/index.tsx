@@ -16,7 +16,7 @@ import { IoStarSharp } from "react-icons/io5";
 
 import { CiVideoOn } from "react-icons/ci";
 import { LiaShippingFastSolid } from "react-icons/lia";
-import { lifeyFont, thirdFont } from "@/app/lib/fonts";
+import { subHeaderFont, headerFont } from "@/app/lib/fonts";
 import { FiLogOut } from "react-icons/fi";
 import { RiCoupon3Line } from "react-icons/ri";
 import { TiUserAddOutline } from "react-icons/ti";
@@ -66,11 +66,11 @@ const menuGroups = [
         label: "Overview",
         route: "/",
       },
-      {
-        icon: <GoPackage />,
-        label: "Orders",
-        route: "/pages/orders",
-      },
+      // {
+      //   icon: <GoPackage />,
+      //   label: "Orders",
+      //   route: "/pages/orders",
+      // },
       {
         icon: <MdPlaylistPlay />,
         label: "Playslists",
@@ -82,53 +82,53 @@ const menuGroups = [
         label: "Videos",
         route: "/pages/videos",
       },
-      {
-        icon: <BsHandbag />,
-        label: "Products",
-        route: "/pages/products",
-      },
-      {
-        icon: <GiClothes />,
-        label: "Categories",
-        route: "/pages/categories",
-      },
-      {
-        icon: <BsCollection />,
-        label: "Collections",
-        route: "/pages/collections",
-      },
-      {
-        icon: <IoStarSharp />,
-        label: "Favorites",
-        route: "/pages/favorites",
-      },
-      {
-        icon: <MdOutlineLoyalty />,
-        label: "Loyalty",
-        route: "/pages/loyalty/rewards",
-      },
-      {
-        icon: <GiThreeFriends />,
-        label: "Partners",
-        route: "/pages/partners",
-      },
-      {
-        icon: <BsCollection />,
+      // {
+      //   icon: <BsHandbag />,
+      //   label: "Products",
+      //   route: "/pages/products",
+      // },
+      // {
+      //   icon: <GiClothes />,
+      //   label: "Categories",
+      //   route: "/pages/categories",
+      // },
+      // {
+      //   icon: <BsCollection />,
+      //   label: "Collections",
+      //   route: "/pages/collections",
+      // },
+      // {
+      //   icon: <IoStarSharp />,
+      //   label: "Favorites",
+      //   route: "/pages/favorites",
+      // },
+      // {
+      //   icon: <MdOutlineLoyalty />,
+      //   label: "Loyalty",
+      //   route: "/pages/loyalty/rewards",
+      // },
+      // {
+      //   icon: <GiThreeFriends />,
+      //   label: "Partners",
+      //   route: "/pages/partners",
+      // },
+      // {
+      //   icon: <BsCollection />,
 
-        label: "Banners & Popups",
-        route: "/pages/banners",
-      },
+      //   label: "Banners & Popups",
+      //   route: "/pages/banners",
+      // },
       {
         icon: <PiBooks />,
 
-        label: "Blogs",
+        label: "Articles",
         route: "/pages/blogs",
       },
-      {
-        icon: <RiCoupon3Line />,
-        label: "Discounts",
-        route: "/discounts",
-      },
+      // {
+      //   icon: <RiCoupon3Line />,
+      //   label: "Discounts",
+      //   route: "/discounts",
+      // },
       {
         icon: <LuNotebookPen />,
         label: "Packages",
@@ -219,16 +219,16 @@ const menuGroups = [
         label: "Interactions",
         route: "/interactions",
       },
-      {
-        icon: <LiaShippingFastSolid />,
-        label: "Shipping",
-        route: "/pages/shipping",
-      },
-      {
-        icon: <FiKey />,
-        label: "Logins",
-        route: "/pages/logins",
-      },
+      // {
+      //   icon: <LiaShippingFastSolid />,
+      //   label: "Shipping",
+      //   route: "/pages/shipping",
+      // },
+      // {
+      //   icon: <FiKey />,
+      //   label: "Logins",
+      //   route: "/pages/logins",
+      // },
       {
         icon: <FiLogOut />,
         label: "Logout",
@@ -250,12 +250,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         }`}
       >
         {/* <!-- SIDEBAR HEADER --> */}
-        <div className="flex items-center justify-center gap-2 border-b border-white bg-primary px-6 py-5.5 lg:py-6.5">
+        <div className="flex items-center justify-center gap-2 border-b border-white bg-primary px-6 ">
           <Link href="/">
             <Image
               width={176}
               height={32}
-              src={"/logo/WifeyforLifeyPrimaryLogowithSloganCream.png"}
+              src={"/logo/Copy of TGN_LOGOSWhiteBorders-03.png"}
               alt="Logo"
               priority
             />
@@ -286,7 +286,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
           {/* <!-- Sidebar Menu --> */}
           <nav
-            className={`${thirdFont.className} mt-5 px-4 py-4 lg:mt-9 lg:px-6`}
+            className={`${headerFont.className} mt-5 px-4 py-4 lg:mt-9 lg:px-6`}
           >
             {menuGroups.map((group, groupIndex) => (
               <div key={groupIndex}>

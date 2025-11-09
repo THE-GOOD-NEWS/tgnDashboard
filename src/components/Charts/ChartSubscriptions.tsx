@@ -4,7 +4,7 @@ import { ApexOptions } from "apexcharts";
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import axios from "axios";
-import { thirdFont } from "@/app/lib/fonts";
+import { headerFont } from "@/app/lib/fonts";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
@@ -18,7 +18,7 @@ const options: ApexOptions = {
     toolbar: { show: false },
     zoom: { enabled: false },
   },
-  colors: ["#D32333", "#12665C", "#81C8BB"],
+  colors: ["#FF9ACC", "#FFFF32", "#81C8BB"],
   legend: {
     position: "top",
     horizontalAlign: "left",
@@ -166,36 +166,45 @@ const ChartSubscriptions: React.FC = () => {
             const yearlyData = response.data.data.monthlyData;
 
             // Arabic month names mapping as fallback
-            const arabicMonthsMap: {[key: string]: number} = {
-              "يناير": 0,    // January
-              "فبراير": 1,   // February
-              "مارس": 2,     // March
-              "أبريل": 3,    // April
-              "مايو": 4,     // May
-              "يونيو": 5,    // June
-              "يوليو": 6,    // July
-              "أغسطس": 7,    // August
-              "سبتمبر": 8,   // September
-              "أكتوبر": 9,   // October
-              "نوفمبر": 10,  // November
-              "ديسمبر": 11   // December
+            const arabicMonthsMap: { [key: string]: number } = {
+              يناير: 0, // January
+              فبراير: 1, // February
+              مارس: 2, // March
+              أبريل: 3, // April
+              مايو: 4, // May
+              يونيو: 5, // June
+              يوليو: 6, // July
+              أغسطس: 7, // August
+              سبتمبر: 8, // September
+              أكتوبر: 9, // October
+              نوفمبر: 10, // November
+              ديسمبر: 11, // December
             };
 
             // Process the yearly data and distribute among months
             yearlyData.forEach((monthData: any) => {
               // Extract month from the month string (format: "MMM YYYY")
               const monthStr = monthData.month.split(" ")[0]; // Get month name
-              
+
               // Try to get month index from English month name first
-              let monthIndex = monthNames.findIndex(m => m === monthStr);
-              
+              let monthIndex = monthNames.findIndex((m) => m === monthStr);
+
               // If not found, try Arabic month name as fallback
-              if (monthIndex === -1 && arabicMonthsMap[monthStr] !== undefined) {
+              if (
+                monthIndex === -1 &&
+                arabicMonthsMap[monthStr] !== undefined
+              ) {
                 monthIndex = arabicMonthsMap[monthStr];
-                console.log(`Using Arabic month fallback for: ${monthStr} -> ${monthIndex}`);
+                console.log(
+                  `Using Arabic month fallback for: ${monthStr} -> ${monthIndex}`,
+                );
               }
 
-              if (monthIndex !== undefined && monthIndex >= 0 && monthIndex < 12) {
+              if (
+                monthIndex !== undefined &&
+                monthIndex >= 0 &&
+                monthIndex < 12
+              ) {
                 // Assign data to the correct month
                 fullYearData[monthIndex] = {
                   month: monthNames[monthIndex],
@@ -276,7 +285,7 @@ const ChartSubscriptions: React.FC = () => {
         <div className="flex min-w-47.5">
           <div className="w-full">
             <h4
-              className={`${thirdFont.className} text-2xl font-semibold tracking-normal text-secondary`}
+              className={`${headerFont.className} text-2xl font-semibold tracking-normal text-secondary`}
             >
               Subscription Analytics
             </h4>

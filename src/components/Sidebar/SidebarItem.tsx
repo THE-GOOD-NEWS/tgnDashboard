@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import SidebarDropdown from "@/components/Sidebar/SidebarDropdown";
 import { usePathname, useRouter } from "next/navigation";
-import { lifeyFont, thirdFont } from "@/app/lib/fonts";
+import { subHeaderFont, headerFont } from "@/app/lib/fonts";
 import axios from "axios";
 
 const SidebarItem = ({ item, pageName, setPageName }: any) => {
@@ -12,15 +12,13 @@ const SidebarItem = ({ item, pageName, setPageName }: any) => {
   const handleClick = async (e: React.MouseEvent) => {
     if (item.label === "LOGOUT") {
       e.preventDefault();
-        try {
-          await axios.post('/api/auth/logout');
-          // Force a hard navigation to login page
-          window.location.href = '/login';
-        } catch (error) {
-          console.error('Logout error:', error);
-        }
-         
-
+      try {
+        await axios.post("/api/auth/logout");
+        // Force a hard navigation to login page
+        window.location.href = "/login";
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
     }
 
     const updatedPageName =
@@ -44,13 +42,13 @@ const SidebarItem = ({ item, pageName, setPageName }: any) => {
         <Link
           href={item.route}
           onClick={handleClick}
-          className={`${thirdFont.className} ${isItemActive ? "bg-accent to-pink-700 text-white dark:bg-meta-4" : ""} group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-white duration-300 ease-in-out hover:text-primary hover:bg-backgroundColor dark:hover:bg-meta-4`}
+          className={`${headerFont.className} ${isItemActive ? "bg-accent/70 to-pink-700 text-white dark:bg-meta-4" : ""} group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-white duration-300 ease-in-out hover:bg-backgroundColor hover:text-primary dark:hover:bg-meta-4`}
         >
           {item.icon}
           {item.label}
           {item.children && (
             <svg
-              className={`absolute right-4 top-1/ -translate-y-1/2 fill-current ${
+              className={`top-1/ absolute right-4 -translate-y-1/2 fill-current ${
                 pageName === item.label.toLowerCase() && "rotate-180"
               }`}
               width="20"

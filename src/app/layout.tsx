@@ -3,7 +3,7 @@ import "flatpickr/dist/flatpickr.min.css";
 import "@/css/style.css";
 import React from "react";
 import ClientWrapper from "@/components/Wrapper";
-import { wifeyFont } from "./lib/fonts";
+import { bodyFont } from "./lib/fonts";
 import { Toaster } from "react-hot-toast";
 
 export default function RootLayout({
@@ -18,7 +18,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning={true}
-        className={`$${wifeyFont.className} bg-creamey  antialiased`}
+        className={`${bodyFont.className} bg-creamey  antialiased`}
       >
         <ClientWrapper>{children}</ClientWrapper>
         <Toaster
@@ -26,8 +26,8 @@ export default function RootLayout({
           toastOptions={{
             duration: 4000,
             style: {
-              background: '#363636',
-              color: '#fff',
+              background: "#363636",
+              color: "#fff",
             },
           }}
         />

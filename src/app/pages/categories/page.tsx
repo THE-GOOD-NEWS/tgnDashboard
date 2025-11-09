@@ -1,5 +1,5 @@
 "use client";
-import { thirdFont } from "@/app/lib/fonts";
+import { headerFont } from "@/app/lib/fonts";
 import CategoryModal from "@/components/CategoryModal";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import { Category, SubCategory } from "@/interfaces/interfaces";
@@ -62,13 +62,13 @@ const CategoriesPage = () => {
       <div className="flex h-auto min-h-screen w-full flex-col items-center justify-start gap-4 overflow-hidden bg-backgroundColor px-1 py-2 md:px-2 md:py-4">
         <div className="flex w-[97%] justify-between text-primary">
           <button
-              className="border-[1px] rounded-2xl bg-secondary px-4 py-2 text-sm text-creamey"
-              onClick={() => openModal("add")}>
+            className="rounded-2xl border-[1px] bg-secondary px-4 py-2 text-sm text-creamey"
+            onClick={() => openModal("add")}
+          >
             ADD NEW CATEGORY
           </button>
           <button
-                          className="border-[1px] rounded-2xl bg-secondary text-sm px-4 py-2 text-creamey"
-
+            className="rounded-2xl border-[1px] bg-secondary px-4 py-2 text-sm text-creamey"
             onClick={() => openModal("addSub")}
           >
             ADD NEW SUBCATEGORY
@@ -77,10 +77,14 @@ const CategoriesPage = () => {
 
         {/* Categories Table */}
         {categories.length > 0 && (
-          <div className="w-[97%] text-center pt-10">
-            <h2 className={`${thirdFont.className} text-secondary mb-4 text-3xl font-semibold`}>Categories</h2>
+          <div className="w-[97%] pt-10 text-center">
+            <h2
+              className={`${headerFont.className} mb-4 text-3xl font-semibold text-secondary`}
+            >
+              Categories
+            </h2>
             <table className="w-full rounded border border-gray-300 text-left">
-              <thead className="bg-secondary text-creamey text-sm">
+              <thead className="bg-secondary text-sm text-creamey">
                 <tr>
                   <th className="border p-2">#</th>
                   <th className="border p-2">Category Name</th>
@@ -120,9 +124,13 @@ const CategoriesPage = () => {
         {/* Subcategories Table */}
         {subCategories.length > 0 && (
           <div className="mt-8 w-[97%] text-center">
-            <h2 className={`${thirdFont.className} text-secondary mb-4 text-3xl font-semibold`}>Subcategories</h2>
+            <h2
+              className={`${headerFont.className} mb-4 text-3xl font-semibold text-secondary`}
+            >
+              Subcategories
+            </h2>
             <table className="w-full rounded border border-gray-300 text-left">
-              <thead className="bg-secondary text-creamey text-sm">
+              <thead className="bg-secondary text-sm text-creamey">
                 <tr>
                   <th className="border p-2">#</th>
                   <th className="border p-2">Subcategory Name</th>
@@ -145,7 +153,7 @@ const CategoriesPage = () => {
                     </td>
                     <td className="border p-2">{subCategory.description}</td>
                     <td className="border p-2">
-                      {subCategory?.categoryID?._id 
+                      {subCategory?.categoryID?._id
                         ? categories.find(
                             (cat) => cat._id === subCategory.categoryID._id,
                           )?.categoryName || "N/A"

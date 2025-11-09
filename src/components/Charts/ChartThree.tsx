@@ -2,7 +2,7 @@ import { ApexOptions } from "apexcharts";
 import React, { useEffect, useState } from "react";
 import ReactApexChart from "react-apexcharts";
 import axios from "axios";
-import { thirdFont } from "@/app/lib/fonts";
+import { headerFont } from "@/app/lib/fonts";
 interface Visit {
   deviceType: string;
   countryCode: string; // e.g., 'desktop', 'tablet', 'mobile', 'other'
@@ -107,7 +107,7 @@ const ChartThree: React.FC = () => {
       <div className="mb-3 justify-between gap-4 sm:flex">
         <div>
           <h5
-            className={`${thirdFont.className} text-2xl font-semibold tracking-normal text-secondary dark:text-white`}
+            className={`${headerFont.className} text-2xl font-semibold tracking-normal text-secondary dark:text-white`}
           >
             Visitors Analytics
           </h5>

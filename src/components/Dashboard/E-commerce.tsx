@@ -109,7 +109,7 @@ const ECommerce: React.FC = () => {
 
       <div className="mt-4 grid grid-cols-12 gap-4  md:gap-6  2xl:gap-7.5">
         <ChartSubscriptions />
-        <ChartOne />
+        {/* <ChartOne /> */}
         <ChartTwo />
         <ChartThree />
         {/* <MapOne /> */}
@@ -118,7 +118,7 @@ const ECommerce: React.FC = () => {
         </div> */}
         {/* <ChatCard /> */}
       </div>
-      <RecentOrders />
+      {/* <RecentOrders /> */}
     </div>
   );
 };

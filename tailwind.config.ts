@@ -10,7 +10,7 @@ const config: Config = {
   ],
   darkMode: "class",
   theme: {
-    backgroundImage: {pattern1 : 'url(/patterns/patternCreamey.png)'},
+    backgroundImage: { pattern1: "url(/patterns/patternCreamey.png)" },
     fontFamily: {
       satoshi: ["Satoshi", "sans-serif"],
     },
@@ -22,17 +22,19 @@ const config: Config = {
     },
     extend: {
       colors: {
-        primary:"#D32333",
-        accent:"#12665C",
-        primaryLight:"#FFB6C7",
+        //hotPink
+        primary: "#FF9ACC",
+        //brightYellow
+        accent: "#FFFF32",
+        primaryLight: "#FFB6C7",
         // primary:"#2C5694",
-        secondary:"#12665C",
-        saga:"#81C8BB",
+        secondary: "#000000",
+        saga: "#81C8BB",
 
-        backgroundColor:"#FBF3E0",
-        yellowBGC:"#FBF3E0",
-        babyBlue:"#FBF3E0",
-        creamey:"#FBF3E0",
+        backgroundColor: "#F6EDDD",
+        yellowBGC: "#FBF3E0",
+        babyBlue: "#FBF3E0",
+        creamey: "#F6EDDD",
         current: "currentColor",
         transparent: "transparent",
         white: "#FFFFFF",

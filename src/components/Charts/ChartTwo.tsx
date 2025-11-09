@@ -2,7 +2,7 @@ import { ApexOptions } from "apexcharts";
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import axios from "axios";
-import { thirdFont } from "@/app/lib/fonts";
+import { headerFont } from "@/app/lib/fonts";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
@@ -23,7 +23,7 @@ const options: ApexOptions = {
       title: { text: "Local Profit (EGP)" },
       min: 0,
       max: 25000,
-      tickAmount: 5, 
+      tickAmount: 5,
       labels: {
         formatter: (value) => value.toFixed(0),
       },
@@ -60,7 +60,7 @@ const options: ApexOptions = {
   },
   dataLabels: { enabled: false },
   xaxis: {
-    categories: ["S","M", "T", "W", "T", "F", "S" ],
+    categories: ["S", "M", "T", "W", "T", "F", "S"],
   },
   legend: {
     position: "top",
@@ -83,24 +83,22 @@ const ChartTwo: React.FC = () => {
     try {
       const response = await axios.get(`/api/localGlobalProfit?week=${week}`);
       const orders = response.data.data || [];
-  
+
       if (!Array.isArray(orders)) {
         console.error("Invalid data format:", orders);
         return;
       }
-  
+
       const localProfits = new Array(7).fill(0);
       // const globalProfits = new Array(7).fill(0);
-  
+
       orders.forEach((order: any) => {
         const date = new Date(order.createdAt);
         const dayOfWeek = date.getDay();
-  
-       
-          localProfits[dayOfWeek] += order.subTotal || 0;
- 
+
+        localProfits[dayOfWeek] += order.subTotal || 0;
       });
-  
+
       setSeries([
         { name: "Local Profit", data: localProfits },
         // { name: "Global Profit", data: globalProfits },
@@ -113,12 +111,14 @@ const ChartTwo: React.FC = () => {
   useEffect(() => {
     fetchOrders(week); // fetch orders based on selected week
   }, [week]); // fetch data again when 'week' state changes
-  
+
   return (
     <div className="col-span-12 rounded-2xl border border-stroke bg-white p-7.5 shadow-default dark:border-strokedark dark:bg-boxdark xl:col-span-6">
       <div className="mb-4 justify-between gap-4 sm:flex">
         <div>
-          <h4 className={`${thirdFont.className} text-secondary text-2xl tracking-normal font-semibold  dark:text-white`}>
+          <h4
+            className={`${headerFont.className} text-2xl font-semibold tracking-normal text-secondary  dark:text-white`}
+          >
             Profit this week
           </h4>
         </div>
@@ -130,8 +130,12 @@ const ChartTwo: React.FC = () => {
               className="relative z-20 inline-flex appearance-none bg-transparent py-1 pl-3 pr-8 text-sm font-medium outline-none"
               onChange={(e) => setWeek(e.target.value)} // Update 'week' state on selection
             >
-              <option value="thisWeek" className="dark:bg-boxdark">This Week</option>
-              <option value="lastWeek" className="dark:bg-boxdark">Last Week</option>
+              <option value="thisWeek" className="dark:bg-boxdark">
+                This Week
+              </option>
+              <option value="lastWeek" className="dark:bg-boxdark">
+                Last Week
+              </option>
             </select>
             <span className="absolute right-3 top-1/2 z-10 -translate-y-1/2">
               <svg

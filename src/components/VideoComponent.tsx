@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Video } from "@/interfaces/interfaces";
 import axios from "axios";
 import Image from "next/image";
-import { thirdFont } from "@/app/lib/fonts";
+import { headerFont } from "@/app/lib/fonts";
 import { UploadButton } from "@/utils/uploadthing";
 
 interface VideoComponentProps {
@@ -455,7 +455,7 @@ const VideoComponent: React.FC<VideoComponentProps> = ({
           <div className="flex-1">
             <div className="mb-2 flex items-start justify-between">
               <h3
-                className={`${thirdFont.className} text-lg font-semibold md:text-2xl `}
+                className={`${headerFont.className} text-lg font-semibold md:text-2xl `}
               >
                 {video.title}
               </h3>
