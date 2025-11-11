@@ -4,7 +4,7 @@ export interface IInteraction extends Document {
   userId: mongoose.Types.ObjectId;
   targetId: mongoose.Types.ObjectId;
   parentId?: mongoose.Types.ObjectId;
-  parentType?: "video" | "blog";
+  parentType?: "video" | "article";
   replyId?: mongoose.Types.ObjectId;
   targetType: "video" | "comment" | "reply";
   actionType: "like" | "unlike" | "comment" | "reply";
@@ -38,7 +38,7 @@ const InteractionSchema = new Schema<IInteraction>(
     },
     parentType: {
       type: String,
-      enum: ["video", "blog"],
+      enum: ["video", "article"],
       required: false,
     },
     parentId: {

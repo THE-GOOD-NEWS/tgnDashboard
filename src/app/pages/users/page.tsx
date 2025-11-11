@@ -47,7 +47,7 @@ const UsersPage = () => {
       try {
         const apiUrl = `/api/users?page=${page}&search=${encodeURIComponent(debouncedSearchQuery)}`;
         const res = await axios.get(apiUrl);
-        
+
         setUsers(res.data.data.users);
         setTotalPages(res.data.data.pagination.totalPages);
       } catch (error) {
@@ -112,7 +112,7 @@ const UsersPage = () => {
             />
           </div>
           <button
-            className="rounded-2xl bg-primary px-4 py-2 text-sm text-creamey hover:cursor-pointer"
+            className="rounded-md bg-primary px-4 py-2 text-sm text-creamey hover:cursor-pointer"
             onClick={() => openModal("add")}
           >
             ADD USER
@@ -300,7 +300,7 @@ const UsersPage = () => {
                   <label className="mb-1 block text-sm font-medium">Role</label>
                   <select name="role" className="w-full rounded border p-2">
                     <option value="customer">Customer</option>
-                    <option value="moderator">Moderator</option>
+                    {/* <option value="moderator">Moderator</option> */}
                     <option value="admin">Admin</option>
                   </select>
                 </div>
@@ -321,7 +321,7 @@ const UsersPage = () => {
                   </button>
                   <button
                     type="submit"
-                    className="rounded bg-accent px-4 py-2 text-white"
+                    className="rounded bg-primary px-4 py-2 text-white"
                   >
                     Add User
                   </button>
@@ -389,7 +389,7 @@ const UsersPage = () => {
                     className="w-full rounded border p-2"
                   >
                     <option value="customer">Customer</option>
-                    <option value="moderator">Moderator</option>
+                    {/* <option value="moderator">Moderator</option> */}
                     <option value="admin">Admin</option>
                   </select>
                 </div>

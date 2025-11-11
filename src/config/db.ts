@@ -2,7 +2,7 @@
 
 import mongoose from "mongoose";
 
-const MONGODB_URI = `mongodb+srv://wifeyforlifey:${process.env.MONGO_PASSWORD}@wifeyforlifey.j0pm4vx.mongodb.net/wifeyforlifey?retryWrites=true&w=majority&appName=WifeyForLifey`;
+const MONGODB_URI = `${process.env.MONGODB_URI}`;
 
 if (!MONGODB_URI) {
   throw new Error("Please define the MONGO_PASSWORD environment variable");

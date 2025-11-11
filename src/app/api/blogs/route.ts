@@ -1,4 +1,4 @@
-import BlogModel from "@/app/models/blogModel";
+import ArticleModel from "@/app/models/articleModel";
 import UserModel from "@/app/models/userModel";
 import { ConnectDB } from "@/config/db";
 import { NextResponse } from "next/server";
@@ -10,7 +10,7 @@ const loadDB = async () => {
 
 loadDB();
 
-// GET - Fetch all blogs with pagination, search, and filtering
+// GET - Fetch all articles with pagination, search, and filtering
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     const tag = searchParams.get("tag") || "";
     const featured = searchParams.get("featured");
     const all = searchParams.get("all") === "true";
-    
+
     const limit = all ? 0 : 10;
     const skip = all ? 0 : (page - 1) * limit;
 
@@ -33,7 +33,8 @@ export async function GET(req: Request) {
       searchQuery.$or = [
         { title: { $regex: search, $options: "i" } },
         { content: { $regex: search, $options: "i" } },
-        { excerpt: { $regex: search, $options: "i" } }
+        { excerpt: { $regex: search, $options: "i" } },
+        { "blocks.textHtml": { $regex: search, $options: "i" } },
       ];
     }
 
@@ -54,18 +55,16 @@ export async function GET(req: Request) {
 
     // Filter by author
 
-
     // Filter by featured
     if (featured !== null && featured !== undefined) {
       searchQuery.featured = featured === "true";
     }
 
     // Get total count
-    const totalBlogs = await BlogModel.countDocuments(searchQuery);
+    const totalArticles = await ArticleModel.countDocuments(searchQuery);
 
-    // Get blogs with population
-    const blogs = await BlogModel
-      .find(searchQuery)
+    // Get articles with population
+    const articles = await ArticleModel.find(searchQuery)
 
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -73,32 +72,34 @@ export async function GET(req: Request) {
 
     return NextResponse.json(
       {
-        data: blogs,
-        total: totalBlogs,
+        data: articles,
+        total: totalArticles,
         currentPage: page,
-        totalPages: all ? 1 : Math.ceil(totalBlogs / limit),
+        totalPages: all ? 1 : Math.ceil(totalArticles / limit),
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: any) {
-    console.error("Error fetching blogs:", error);
+    console.error("Error fetching articles:", error);
     return NextResponse.json(
-      { error: "Failed to fetch blogs" },
-      { status: 500 }
+      { error: "Failed to fetch articles" },
+      { status: 500 },
     );
   }
 }
 
-// POST - Create a new blog
+// POST - Create a new article
 export async function POST(req: Request) {
   try {
     const data = await req.json();
-    
-    // Validate required fields
-    if (!data.title || !data.content || !data.excerpt ) {
+
+    // Validate required fields: title and either content or blocks
+    // const hasContent = !!(data.content && typeof data.content === "string" && data.content.trim().length);
+    const hasBlocks = Array.isArray(data.blocks) && data.blocks.length > 0;
+    if (!data.title || !hasBlocks) {
       return NextResponse.json(
-        { error: "Title, content, excerpt, and author are required" },
-        { status: 400 }
+        { error: "Title and content (rich text or blocks) are required" },
+        { status: 400 },
       );
     }
 
@@ -115,113 +116,158 @@ export async function POST(req: Request) {
     if (!data.slug && data.title) {
       data.slug = data.title
         .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
         .trim();
     }
 
     // Check if slug already exists
-    const existingBlog = await BlogModel.findOne({ slug: data.slug });
-    if (existingBlog) {
+    const existingArticle = await ArticleModel.findOne({ slug: data.slug });
+    if (existingArticle) {
       // Append timestamp to make it unique
       data.slug = `${data.slug}-${Date.now()}`;
     }
 
-    const newBlog = await BlogModel.create(data);
-    
+    // Auto-generate excerpt if not provided
+    // if (!data.excerpt) {
+    //   const baseText = hasContent
+    //     ? String(data.content)
+    //     : String((data.blocks || []).map((b: any) => b.textHtml || '').join(' '));
+    //   const stripped = baseText.replace(/<[^>]*>/g, '').trim();
+    //   data.excerpt = stripped.slice(0, 300);
+    // }
+
+    // Fallback: generate content HTML from blocks if missing (compat with older schemas)
+    // if (!hasContent && hasBlocks) {
+    //   const contentHtml = String((data.blocks || [])
+    //     .map((b: any) => b.textHtml || '')
+    //     .filter((s: string) => s && s.trim().length)
+    //     .join('\n<hr/>\n'));
+    //   data.content = contentHtml || '<p></p>';
+    // }
+
+    const newArticle = await ArticleModel.create(data);
+
     // Populate author information
-    // await newBlog.populate({
+    // await newArticle.populate({
     //   path: "author",
     //   model: "users",
     //   select: "username firstName lastName email imageURL"
     // });
 
-    return NextResponse.json({ data: newBlog }, { status: 201 });
+    return NextResponse.json({ data: newArticle }, { status: 201 });
   } catch (error: any) {
-    console.error("Error creating blog:", error);
+    console.error("Error creating article:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// PUT - Update a blog
+// PUT - Update a article
 export async function PUT(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const blogId = searchParams.get("id");
-    
-    if (!blogId) {
+    const articleId = searchParams.get("id");
+
+    if (!articleId) {
       return NextResponse.json(
-        { error: "Blog ID is required" },
-        { status: 400 }
+        { error: "Article ID is required" },
+        { status: 400 },
       );
     }
 
     const data = await req.json();
-    
+
     // If slug is being updated, check for uniqueness
     if (data.slug) {
-      const existingBlog = await BlogModel.findOne({ 
-        slug: data.slug, 
-        _id: { $ne: blogId } 
+      const existingArticle = await ArticleModel.findOne({
+        slug: data.slug,
+        _id: { $ne: articleId },
       });
-      if (existingBlog) {
+      if (existingArticle) {
         return NextResponse.json(
           { error: "Slug already exists" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
-    const updatedBlog = await BlogModel.findByIdAndUpdate(
-      blogId,
-      data,
-      { new: true, runValidators: true }
-    )
-
-
-    if (!updatedBlog) {
-      return NextResponse.json(
-        { error: "Blog not found" },
-        { status: 404 }
+    // If excerpt provided as empty and content/blocks present, regenerate
+    if (!data.excerpt && (data.content || data.blocks)) {
+      const hasContent = !!(
+        data.content &&
+        typeof data.content === "string" &&
+        data.content.trim().length
       );
+      const baseText = hasContent
+        ? String(data.content)
+        : String(
+            (data.blocks || []).map((b: any) => b.textHtml || "").join(" "),
+          );
+      const stripped = baseText.replace(/<[^>]*>/g, "").trim();
+      data.excerpt = stripped.slice(0, 300);
     }
 
-    return NextResponse.json({ data: updatedBlog }, { status: 200 });
+    // Fallback: generate content HTML from blocks if missing
+    if (
+      (!data.content || !String(data.content).trim().length) &&
+      Array.isArray(data.blocks) &&
+      data.blocks.length
+    ) {
+      const contentHtml = String(
+        (data.blocks || [])
+          .map((b: any) => b.textHtml || "")
+          .filter((s: string) => s && s.trim().length)
+          .join("\n<hr/>\n"),
+      );
+      data.content = contentHtml || "<p></p>";
+    }
+
+    const updatedArticle = await ArticleModel.findByIdAndUpdate(
+      articleId,
+      data,
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    if (!updatedArticle) {
+      return NextResponse.json({ error: "Article not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ data: updatedArticle }, { status: 200 });
   } catch (error: any) {
-    console.error("Error updating blog:", error);
+    console.error("Error updating article:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// DELETE - Delete a blog
+// DELETE - Delete a article
 export async function DELETE(req: Request) {
   try {
     const data = await req.json();
-    const { blogId } = data;
+    const { articleId } = data;
 
-    if (!blogId) {
+    if (!articleId) {
       return NextResponse.json(
-        { error: "Blog ID is required" },
-        { status: 400 }
+        { error: "Article ID is required" },
+        { status: 400 },
       );
     }
 
-    const deletedBlog = await BlogModel.findByIdAndDelete(blogId);
+    const deletedArticle = await ArticleModel.findByIdAndDelete(articleId);
 
-    if (!deletedBlog) {
-      return NextResponse.json(
-        { error: "Blog not found" },
-        { status: 404 }
-      );
+    if (!deletedArticle) {
+      return NextResponse.json({ error: "Article not found" }, { status: 404 });
     }
 
     return NextResponse.json(
-      { message: "Blog deleted successfully", data: deletedBlog },
-      { status: 200 }
+      { message: "Article deleted successfully", data: deletedArticle },
+      { status: 200 },
     );
   } catch (error: any) {
-    console.error("Error deleting blog:", error);
+    console.error("Error deleting article:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

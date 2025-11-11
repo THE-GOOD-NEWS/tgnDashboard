@@ -1,11 +1,11 @@
 "use client";
 import { headerFont } from "@/app/lib/fonts";
-import BlogModal from "@/components/BlogModal";
+import ArticleBlocksModal from "@/components/ArticleBlocksModal";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 
-interface Blog {
+interface Article {
   _id: string;
   title: string;
   slug: string;
@@ -34,20 +34,20 @@ interface Blog {
   formattedPublishDate?: string;
 }
 
-const BlogsPage = () => {
-  const [blogs, setBlogs] = useState<Blog[]>([]);
+const ArticlesPage = () => {
+  const [articles, setArticles] = useState<Article[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalBlogs, setTotalBlogs] = useState(0);
+  const [totalArticles, setTotalArticles] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [modalType, setModalType] = useState<
     "edit" | "delete" | "add" | "view" | null
   >(null);
-  const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
 
-  const fetchBlogs = async () => {
+  const fetchArticles = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -56,33 +56,36 @@ const BlogsPage = () => {
         ...(statusFilter && { status: statusFilter }),
       });
 
-      const response = await axios.get(`/api/blogs?${params}`);
-      setBlogs(response.data.data);
+      const response = await axios.get(`/api/articles?${params}`);
+      setArticles(response.data.data);
       setTotalPages(response.data.totalPages);
-      setTotalBlogs(response.data.total);
+      setTotalArticles(response.data.total);
     } catch (error) {
-      console.error("Error fetching blogs:", error);
+      console.error("Error fetching articles:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBlogs();
+    fetchArticles();
   }, [page, search, statusFilter]);
 
-  const openModal = (type: "edit" | "delete" | "add" | "view", blog?: Blog) => {
+  const openModal = (
+    type: "edit" | "delete" | "add" | "view",
+    article?: Article,
+  ) => {
     setModalType(type);
-    setSelectedBlog(blog || null);
+    setSelectedArticle(article || null);
   };
 
   const closeModal = () => {
     setModalType(null);
-    setSelectedBlog(null);
+    setSelectedArticle(null);
   };
 
   const refreshData = () => {
-    fetchBlogs();
+    fetchArticles();
   };
 
   const getStatusBadge = (status: string) => {
@@ -114,13 +117,13 @@ const BlogsPage = () => {
           <h1
             className={`${headerFont.className} text-3xl font-semibold text-secondary`}
           >
-            Blog Management
+            Article Management
           </h1>
           <button
             className="rounded-2xl border-[1px] bg-secondary px-4 py-2 text-sm text-creamey hover:bg-opacity-90"
             onClick={() => openModal("add")}
           >
-            ADD NEW BLOG
+            ADD NEW ARTICLE
           </button>
         </div>
 
@@ -129,7 +132,7 @@ const BlogsPage = () => {
           <div className="flex-1">
             <input
               type="text"
-              placeholder="Search blogs..."
+              placeholder="Search articles..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-secondary"
@@ -152,36 +155,41 @@ const BlogsPage = () => {
         {/* Stats */}
         <div className="grid w-[97%] grid-cols-1 gap-4 md:grid-cols-4">
           <div className="rounded-lg bg-white p-4 shadow">
-            <h3 className="text-lg font-semibold text-gray-700">Total Blogs</h3>
-            <p className="text-2xl font-bold text-secondary">{totalBlogs}</p>
+            <h3 className="text-lg font-semibold text-gray-700">
+              Total Articles
+            </h3>
+            <p className="text-2xl font-bold text-secondary">{totalArticles}</p>
           </div>
           <div className="rounded-lg bg-white p-4 shadow">
             <h3 className="text-lg font-semibold text-gray-700">Published</h3>
             <p className="text-2xl font-bold text-green-600">
-              {blogs.filter((blog) => blog.status === "published").length}
+              {
+                articles.filter((article) => article.status === "published")
+                  .length
+              }
             </p>
           </div>
           <div className="rounded-lg bg-white p-4 shadow">
             <h3 className="text-lg font-semibold text-gray-700">Drafts</h3>
             <p className="text-2xl font-bold text-yellow-600">
-              {blogs.filter((blog) => blog.status === "draft").length}
+              {articles.filter((article) => article.status === "draft").length}
             </p>
           </div>
           <div className="rounded-lg bg-white p-4 shadow">
             <h3 className="text-lg font-semibold text-gray-700">Featured</h3>
             <p className="text-2xl font-bold text-blue-600">
-              {blogs.filter((blog) => blog.featured).length}
+              {articles.filter((article) => article.featured).length}
             </p>
           </div>
         </div>
 
-        {/* Blogs Table */}
+        {/* Articles Table */}
         {loading ? (
           <div className="w-[97%] py-8 text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-secondary"></div>
-            <p className="mt-2 text-gray-600">Loading blogs...</p>
+            <p className="mt-2 text-gray-600">Loading articles...</p>
           </div>
-        ) : blogs.length > 0 ? (
+        ) : articles.length > 0 ? (
           <div className="w-[97%] text-center">
             <div className="overflow-x-auto">
               <table className="w-full rounded border border-gray-300 bg-white text-left">
@@ -197,73 +205,73 @@ const BlogsPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {blogs.map((blog, index) => (
-                    <tr key={blog._id} className="text-sm hover:bg-gray-50">
+                  {articles.map((article, index) => (
+                    <tr key={article._id} className="text-sm hover:bg-gray-50">
                       <td className="border p-3">
                         {(page - 1) * 10 + index + 1}
                       </td>
                       <td className="border p-3">
                         <div>
                           <div className="font-semibold text-gray-900">
-                            {truncateText(blog.title, 150)}
+                            {truncateText(article.title, 150)}
                           </div>
                           <div className="mt-1 text-xs text-gray-600">
-                            {truncateText(stripHtml(blog.excerpt), 1000)}
+                            {truncateText(stripHtml(article.excerpt), 1000)}
                           </div>
                         </div>
                       </td>
                       {/* <td className="border p-3">
                         <div className="flex items-center gap-2">
-                          {blog.author.imageURL && (
+                          {article.author.imageURL && (
                             <img
-                              src={blog.author.imageURL}
-                              alt={blog.author.username}
+                              src={article.author.imageURL}
+                              alt={article.author.username}
                               className="w-6 h-6 rounded-full"
                             />
                           )}
                           <span>
-                            {blog.author.firstName && blog.author.lastName
-                              ? `${blog.author.firstName} ${blog.author.lastName}`
-                              : blog.author.username}
+                            {article.author.firstName && article.author.lastName
+                              ? `${article.author.firstName} ${article.author.lastName}`
+                              : article.author.username}
                           </span>
                         </div>
                       </td> */}
                       <td className="border p-3">
                         <span
-                          className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusBadge(blog.status)}`}
+                          className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusBadge(article.status)}`}
                         >
-                          {blog.status.charAt(0).toUpperCase() +
-                            blog.status.slice(1)}
+                          {article.status.charAt(0).toUpperCase() +
+                            article.status.slice(1)}
                         </span>
                       </td>
                       <td className="border p-3 text-center">
-                        {blog.featured ? (
+                        {article.featured ? (
                           <span className="text-yellow-500">⭐</span>
                         ) : (
                           <span className="text-gray-300">☆</span>
                         )}
                       </td>
                       <td className="border p-3 text-center">
-                        {blog.viewCount}
+                        {article.viewCount}
                       </td>
                       <td className="border p-3">
-                        {new Date(blog.createdAt).toLocaleDateString()}
+                        {new Date(article.createdAt).toLocaleDateString()}
                       </td>
                       <td className="space-x-2 border p-3">
                         <button
-                          onClick={() => openModal("view", blog)}
+                          onClick={() => openModal("view", article)}
                           className="text-blue-600 hover:underline"
                         >
                           View
                         </button>
                         <button
-                          onClick={() => openModal("edit", blog)}
+                          onClick={() => openModal("edit", article)}
                           className="text-green-600 hover:underline"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => openModal("delete", blog)}
+                          onClick={() => openModal("delete", article)}
                           className="text-red-600 hover:underline"
                         >
                           Delete
@@ -277,7 +285,7 @@ const BlogsPage = () => {
           </div>
         ) : (
           <div className="w-[97%] py-8 text-center">
-            <p className="text-gray-600">No blogs found.</p>
+            <p className="text-gray-600">No articles found.</p>
           </div>
         )}
 
@@ -306,9 +314,9 @@ const BlogsPage = () => {
 
         {/* Modal */}
         {modalType && (
-          <BlogModal
+          <ArticleBlocksModal
             type={modalType}
-            blog={selectedBlog}
+            article={selectedArticle}
             closeModal={closeModal}
             refreshData={refreshData}
           />
@@ -318,4 +326,4 @@ const BlogsPage = () => {
   );
 };
 
-export default BlogsPage;
+export default ArticlesPage;

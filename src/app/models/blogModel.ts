@@ -1,11 +1,24 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-// Define the Blog interface
-export interface IBlog extends Document {
+// Define the Article interface
+// Define block-based content types
+export type BlockLayout = "img-left" | "img-block";
+
+export interface IContentBlock {
+  type: "text" | "image" | "imageText";
+  textHtml?: string;
+  imageUrl?: string;
+  caption?: string;
+  alt?: string;
+  layout?: BlockLayout; // img-left = image beside text, img-block = image above text
+}
+
+export interface IArticle extends Document {
   _id: string;
   title: string;
   slug: string;
-  content: string; // Rich text content (HTML)
+  content?: string; // Rich text content (HTML)
+  blocks?: IContentBlock[]; // Optional structured blocks for future designs
   excerpt: string;
   featuredImage?: string;
   tikTokVideoUrl?: string;
@@ -22,8 +35,8 @@ export interface IBlog extends Document {
   updatedAt: Date;
 }
 
-// Define the Blog schema
-const BlogSchema = new Schema<IBlog>(
+// Define the Article schema
+const ArticleSchema = new Schema<IArticle>(
   {
     title: {
       type: String,
@@ -43,8 +56,29 @@ const BlogSchema = new Schema<IBlog>(
     },
     content: {
       type: String,
-      required: true,
+      required: false,
     },
+    blocks: [
+      new Schema<IContentBlock>(
+        {
+          type: {
+            type: String,
+            enum: ["text", "image", "imageText"],
+            required: true,
+          },
+          textHtml: { type: String },
+          imageUrl: { type: String },
+          caption: { type: String },
+          alt: { type: String },
+          layout: {
+            type: String,
+            enum: ["img-left", "img-block"],
+            default: "img-block",
+          },
+        },
+        { _id: false },
+      ),
+    ],
     excerpt: {
       type: String,
       required: false,
@@ -60,8 +94,10 @@ const BlogSchema = new Schema<IBlog>(
         validator: function (v: string) {
           if (!v) return true; // Allow empty values
           // Validate TikTok URL format
-          return /^https:\/\/(www\.)?tiktok\.com\/@[\w.-]+\/video\/\d+/.test(v) ||
-                 /^https:\/\/vm\.tiktok\.com\/[\w]+/.test(v);
+          return (
+            /^https:\/\/(www\.)?tiktok\.com\/@[\w.-]+\/video\/\d+/.test(v) ||
+            /^https:\/\/vm\.tiktok\.com\/[\w]+/.test(v)
+          );
         },
         message: "Please enter a valid TikTok video URL",
       },
@@ -125,14 +161,14 @@ const BlogSchema = new Schema<IBlog>(
 );
 
 // Create indexes for better performance
-BlogSchema.index({ slug: 1 });
-BlogSchema.index({ status: 1, publishedAt: -1 });
-BlogSchema.index({ tags: 1 });
-BlogSchema.index({ categories: 1 });
-BlogSchema.index({ featured: 1, status: 1 });
+ArticleSchema.index({ slug: 1 });
+ArticleSchema.index({ status: 1, publishedAt: -1 });
+ArticleSchema.index({ tags: 1 });
+ArticleSchema.index({ categories: 1 });
+ArticleSchema.index({ featured: 1, status: 1 });
 
 // Pre-save middleware to auto-generate slug if not provided
-BlogSchema.pre("save", function (next) {
+ArticleSchema.pre("save", function (next) {
   if (!this.slug && this.title) {
     this.slug = this.title
       .toLowerCase()
@@ -155,14 +191,26 @@ BlogSchema.pre("save", function (next) {
 });
 
 // Virtual for reading time estimation (assuming 200 words per minute)
-BlogSchema.virtual("readingTime").get(function () {
-  const wordCount = this.content.replace(/<[^>]*>/g, "").split(/\s+/).length;
-  const readingTime = Math.ceil(wordCount / 200);
+ArticleSchema.virtual("readingTime").get(function () {
+  let text = "";
+  if (this.content && typeof this.content === "string") {
+    text = this.content;
+  } else if (Array.isArray(this.blocks) && this.blocks.length > 0) {
+    text = this.blocks
+      .map((b: IContentBlock) => (b.textHtml ? b.textHtml : ""))
+      .join(" ");
+  }
+  const wordCount = text
+    .replace(/<[^>]*>/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  const readingTime = Math.max(1, Math.ceil(wordCount / 200));
   return readingTime;
 });
 
 // Virtual for formatted publish date
-BlogSchema.virtual("formattedPublishDate").get(function () {
+ArticleSchema.virtual("formattedPublishDate").get(function () {
   if (this.publishedAt) {
     return this.publishedAt.toLocaleDateString("en-US", {
       year: "numeric",
@@ -173,8 +221,9 @@ BlogSchema.virtual("formattedPublishDate").get(function () {
   return null;
 });
 
-// Create and export the Blog model
-const BlogModel =
-  mongoose.models.blogs || mongoose.model<IBlog>("blogs", BlogSchema);
+// Create and export the Article model
+const ArticleModel =
+  mongoose.models.articles ||
+  mongoose.model<IArticle>("articles", ArticleSchema);
 
-export default BlogModel;
+export default ArticleModel;

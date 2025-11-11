@@ -25,7 +25,7 @@ interface Interaction {
       };
   targetType: "video" | "comment" | "reply";
   actionType: "like" | "unlike" | "comment" | "reply";
-  parentType: "video" | "blog";
+  parentType: "video" | "article";
   parentId: {
     _id: string;
     title: string;

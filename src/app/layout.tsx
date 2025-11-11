@@ -14,7 +14,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <title>Wifey For Lifey</title>
+        <title>THE GOOD NEWS</title>
       </head>
       <body
         suppressHydrationWarning={true}

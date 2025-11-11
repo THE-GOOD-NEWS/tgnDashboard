@@ -71,17 +71,17 @@ const menuGroups = [
       //   label: "Orders",
       //   route: "/pages/orders",
       // },
-      {
-        icon: <MdPlaylistPlay />,
-        label: "Playslists",
-        route: "/pages/playlists",
-      },
-      {
-        icon: <CiVideoOn />,
+      // {
+      //   icon: <MdPlaylistPlay />,
+      //   label: "Playslists",
+      //   route: "/pages/playlists",
+      // },
+      // {
+      //   icon: <CiVideoOn />,
 
-        label: "Videos",
-        route: "/pages/videos",
-      },
+      //   label: "Videos",
+      //   route: "/pages/videos",
+      // },
       // {
       //   icon: <BsHandbag />,
       //   label: "Products",
@@ -122,18 +122,23 @@ const menuGroups = [
         icon: <PiBooks />,
 
         label: "Articles",
-        route: "/pages/blogs",
+        route: "/pages/articles",
+      },
+      {
+        icon: <PiBooksLight />,
+        label: "Article Categories",
+        route: "/pages/article-categories",
       },
       // {
       //   icon: <RiCoupon3Line />,
       //   label: "Discounts",
       //   route: "/discounts",
       // },
-      {
-        icon: <LuNotebookPen />,
-        label: "Packages",
-        route: "/pages/packages",
-      },
+      // {
+      //   icon: <LuNotebookPen />,
+      //   label: "Packages",
+      //   route: "/pages/packages",
+      // },
       {
         icon: (
           <svg
@@ -157,40 +162,40 @@ const menuGroups = [
         label: "Users",
         route: "/pages/users",
       },
-      {
-        icon: <TiUserAddOutline />,
-        label: "Subscriptions",
-        route: "/pages/subscriptions",
-      },
-      {
-        icon: (
-          <svg
-            className="fill-current"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="M5 12H19M5 12L9 8M5 12L9 16"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-            <path
-              d="M12 4V20M12 4L16 8M12 4L8 8"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-          </svg>
-        ),
-        label: "Analytics",
-        route: "/pages/analytics/subscriptions",
-      },
+      // {
+      //   icon: <TiUserAddOutline />,
+      //   label: "Subscriptions",
+      //   route: "/pages/subscriptions",
+      // },
+      // {
+      //   icon: (
+      //     <svg
+      //       className="fill-current"
+      //       width="18"
+      //       height="18"
+      //       viewBox="0 0 24 24"
+      //     >
+      //       <path
+      //         d="M5 12H19M5 12L9 8M5 12L9 16"
+      //         stroke="currentColor"
+      //         strokeWidth="2"
+      //         strokeLinecap="round"
+      //         strokeLinejoin="round"
+      //         fill="none"
+      //       />
+      //       <path
+      //         d="M12 4V20M12 4L16 8M12 4L8 8"
+      //         stroke="currentColor"
+      //         strokeWidth="2"
+      //         strokeLinecap="round"
+      //         strokeLinejoin="round"
+      //         fill="none"
+      //       />
+      //     </svg>
+      //   ),
+      //   label: "Analytics",
+      //   route: "/pages/analytics/subscriptions",
+      // },
       {
         icon: <BiMailSend />,
         label: "Newsletters",
