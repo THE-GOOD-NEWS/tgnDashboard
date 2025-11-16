@@ -41,11 +41,11 @@ export async function POST(request: Request) {
       name: "token",
       value: token,
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 30, // 30 days
-      domain: process.env.NEXT_PUBLIC_DOMAIN || undefined,
+      // Omit domain to default to current host; avoids mismatch in dev
     });
 
     return response;

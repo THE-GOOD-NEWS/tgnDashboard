@@ -4,6 +4,7 @@ import ArticleBlocksModal from "@/components/ArticleBlocksModal";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import axios from "axios";
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface Article {
   _id: string;
@@ -258,12 +259,12 @@ const ArticlesPage = () => {
                         {new Date(article.createdAt).toLocaleDateString()}
                       </td>
                       <td className="space-x-2 border p-3">
-                        <button
-                          onClick={() => openModal("view", article)}
+                        <Link
+                          href={`/article/${article.slug}`}
                           className="text-blue-600 hover:underline"
                         >
                           View
-                        </button>
+                        </Link>
                         <button
                           onClick={() => openModal("edit", article)}
                           className="text-green-600 hover:underline"

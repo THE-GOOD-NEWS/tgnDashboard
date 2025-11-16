@@ -20,7 +20,7 @@ import { subHeaderFont, headerFont } from "@/app/lib/fonts";
 import { FiLogOut } from "react-icons/fi";
 import { RiCoupon3Line } from "react-icons/ri";
 import { TiUserAddOutline } from "react-icons/ti";
-import { PiBooks, PiBooksLight } from "react-icons/pi";
+import { PiBooks, PiBooksLight, PiNewspaperClipping } from "react-icons/pi";
 import { LuNotebookPen } from "react-icons/lu";
 import { FiKey } from "react-icons/fi";
 
@@ -125,7 +125,7 @@ const menuGroups = [
         route: "/pages/articles",
       },
       {
-        icon: <PiBooksLight />,
+        icon: <PiNewspaperClipping />,
         label: "Article Categories",
         route: "/pages/article-categories",
       },

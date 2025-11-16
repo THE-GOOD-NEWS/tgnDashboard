@@ -8,7 +8,7 @@ export function setToken(token: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 30 * 60, // 30 minutes
+    maxAge: 60 * 60 * 24 * 30,
   });
 }
 
@@ -31,5 +31,5 @@ export function verifyToken(token: string) {
 }
 
 export function generateToken(payload: { id: string; username: string }) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30m' });
-} 
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+}

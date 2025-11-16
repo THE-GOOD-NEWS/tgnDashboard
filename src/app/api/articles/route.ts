@@ -3,6 +3,7 @@ import UserModel from "@/app/models/userModel";
 import { ConnectDB } from "@/config/db";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { getToken, verifyToken } from "@/utils/auth";
 
 const loadDB = async () => {
   await ConnectDB();
@@ -93,6 +94,40 @@ export async function POST(req: Request) {
   try {
     const data = await req.json();
 
+    // Attach author from login token (cookie) if available
+    let token = getToken();
+    const cookieHeader = req.headers.get("cookie") || "";
+    console.log("articles: cookieHeader", cookieHeader ? "present" : "missing");
+    if (!token) {
+      const match = cookieHeader.match(/(?:^|;\s*)token=([^;]+)/);
+      if (match) token = decodeURIComponent(match[1]);
+    }
+    console.log("articles: token", token ? "present" : "missing");
+    if (token) {
+      const decoded: any = verifyToken(token);
+      if (!decoded) {
+        console.error("articles: jwt invalid or expired");
+      } else {
+        console.log("articles: decoded", decoded && typeof decoded === "object" ? Object.keys(decoded) : typeof decoded);
+        const authorId = (decoded as any)?.id || (decoded as any)?.userId;
+        if (authorId) {
+          data.author = new mongoose.Types.ObjectId(authorId);
+        } else {
+          console.warn("articles: decoded token missing id/userId");
+        }
+      }
+    }
+
+    if (Array.isArray(data.categories)) {
+      data.categories = data.categories
+        .filter((c: any) =>
+          typeof c === "string" ? mongoose.Types.ObjectId.isValid(c) : !!c,
+        )
+        .map((c: any) =>
+          typeof c === "string" ? new mongoose.Types.ObjectId(c) : c,
+        );
+    }
+
     // Validate required fields: title and either content or blocks
     // const hasContent = !!(data.content && typeof data.content === "string" && data.content.trim().length);
     const hasBlocks = Array.isArray(data.blocks) && data.blocks.length > 0;
@@ -103,14 +138,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if author exists
-    // const authorExists = await UserModel.findById(data.author);
-    // if (!authorExists) {
-    //   return NextResponse.json(
-    //     { error: "Author not found" },
-    //     { status: 404 }
-    //   );
-    // }
+    // Check if author exists when provided
+    if (data.author) {
+      const authorExists = await UserModel.findById(data.author);
+      if (!authorExists) {
+        return NextResponse.json(
+          { error: "Author not found" },
+          { status: 404 },
+        );
+      }
+    }
 
     // Generate slug if not provided
     if (!data.slug && data.title) {
@@ -149,11 +186,11 @@ export async function POST(req: Request) {
 
     const newArticle = await ArticleModel.create(data);
 
-    // Populate author information
+    // Optionally populate author information in response
     // await newArticle.populate({
     //   path: "author",
     //   model: "users",
-    //   select: "username firstName lastName email imageURL"
+    //   select: "username firstName lastName email imageURL",
     // });
 
     return NextResponse.json({ data: newArticle }, { status: 201 });
@@ -221,6 +258,16 @@ export async function PUT(req: Request) {
           .join("\n<hr/>\n"),
       );
       data.content = contentHtml || "<p></p>";
+    }
+
+    if (Array.isArray(data.categories)) {
+      data.categories = data.categories
+        .filter((c: any) =>
+          typeof c === "string" ? mongoose.Types.ObjectId.isValid(c) : !!c,
+        )
+        .map((c: any) =>
+          typeof c === "string" ? new mongoose.Types.ObjectId(c) : c,
+        );
     }
 
     const updatedArticle = await ArticleModel.findByIdAndUpdate(

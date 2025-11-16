@@ -7,6 +7,14 @@ import { genUploader } from "uploadthing/client";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import { compressImage } from "@/utils/imageCompression";
 
+interface ArticleCategory {
+  _id: string;
+  titleEn: string;
+  titleAr: string;
+  slug: string;
+  status: "active" | "inactive";
+}
+
 type ModalType = "add" | "edit" | "delete" | "view";
 
 type BlockLayout = "img-left" | "img-block";
@@ -16,6 +24,7 @@ interface BlockItem {
   id: string;
   type: BlockType;
   textHtml?: string;
+  arabicContent?: string;
   imageUrl?: string;
   caption?: string;
   alt?: string;
@@ -91,6 +100,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
   const isView = type === "view";
 
   const [title, setTitle] = useState("");
+  const [titleAR, setTitleAR] = useState("");
   const [slug, setSlug] = useState("");
   const [status, setStatus] = useState<"draft" | "published" | "archived">(
     "draft",
@@ -103,6 +113,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
     undefined,
   );
   const [excerpt, setExcerpt] = useState("");
+  const [excerptAR, setExcerptAR] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [categoriesInput, setCategoriesInput] = useState("");
   const [metaTitle, setMetaTitle] = useState<string | undefined>(undefined);
@@ -111,16 +122,24 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
   );
   const [blocks, setBlocks] = useState<BlockItem[]>([]);
   const [saving, setSaving] = useState(false);
+  const [articleCategories, setArticleCategories] = useState<ArticleCategory[]>(
+    [],
+  );
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [uploadingFeatured, setUploadingFeatured] = useState(false);
+  const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
 
   useEffect(() => {
     if (article && (isEdit || isView)) {
       setTitle(article.title || "");
+      setTitleAR(article.titleAR || "");
       setSlug(article.slug || "");
       setStatus((article.status as any) || "draft");
       setFeatured(!!article.featured);
       setFeaturedImage(article.featuredImage);
       setTikTokVideoUrl(article.tikTokVideoUrl);
       setExcerpt(article.excerpt || "");
+      setExcerptAR(article.excerptAR || "");
       setTagsInput(
         (Array.isArray(article.tags) ? article.tags : []).join(", "),
       );
@@ -128,6 +147,9 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
         (Array.isArray(article.categories) ? article.categories : []).join(
           ", ",
         ),
+      );
+      setSelectedCategories(
+        Array.isArray(article.categories) ? article.categories : [],
       );
       setMetaTitle(article.metaTitle);
       setMetaDescription(article.metaDescription);
@@ -143,11 +165,53 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
     }
   }, [article, isEdit, isView]);
 
+  // Fetch article categories
+  useEffect(() => {
+    const fetchArticleCategories = async () => {
+      try {
+        const res = await axios.get("/api/article-categories?all=true");
+        if (res.status === 200) {
+          setArticleCategories(res.data.data);
+        }
+      } catch (err) {
+        console.error("Error fetching article categories:", err);
+      }
+    };
+    fetchArticleCategories();
+  }, []);
+
   const toArray = (value: string) =>
     value
       .split(",")
       .map((v) => v.trim())
       .filter((v) => v.length > 0);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategories((prev) => {
+      if (prev.includes(categoryId)) {
+        return prev.filter((id) => id !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const dropdown = document.getElementById("category-dropdown");
+      const button = event.target as Element;
+      if (
+        dropdown &&
+        !dropdown.classList.contains("hidden") &&
+        !button.closest(".relative")
+      ) {
+        dropdown.classList.add("hidden");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const generateSlug = (text: string) =>
     text
@@ -231,18 +295,20 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
 
       const payload: any = {
         title,
+        titleAR,
         slug: slug || generateSlug(title),
         status,
         featured,
         featuredImage,
         tikTokVideoUrl,
         excerpt,
+        excerptAR,
         tags: toArray(tagsInput),
-        categories: toArray(categoriesInput),
+        categories: selectedCategories,
         metaTitle,
         metaDescription,
         blocks: blocks.map(({ id, ...rest }) => rest),
-        // content: contentHtml || "<p></p>",
+        content: contentHtml || "<p></p>",
       };
 
       if (isEdit && article?._id) {
@@ -333,6 +399,9 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
               />
             )}
             <h3 className="text-lg font-bold">{title}</h3>
+            {titleAR && (
+              <h3 className="text-lg font-bold text-gray-700">{titleAR}</h3>
+            )}
             {/* Render blocks */}
             <div className="space-y-6">
               {blocks.map((b) => (
@@ -413,6 +482,18 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                 />
               </div>
               <div>
+                <label className="mb-1 block text-sm text-gray-700">
+                  Title (Arabic)
+                </label>
+                <input
+                  dir="rtl"
+                  value={titleAR}
+                  onChange={(e) => setTitleAR(e.target.value)}
+                  className="w-full rounded border px-3 py-2"
+                  placeholder="العنوان بالعربية"
+                />
+              </div>
+              {/* <div>
                 <label className="mb-1 block text-sm text-gray-700">Slug</label>
                 <input
                   value={slug}
@@ -420,7 +501,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                   className="w-full rounded border px-3 py-2"
                   placeholder="auto-generated if empty"
                 />
-              </div>
+              </div> */}
               <div>
                 <label className="mb-1 block text-sm text-gray-700">
                   Status
@@ -463,13 +544,19 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                   />
                   <button
                     type="button"
+                    disabled={uploadingFeatured}
                     onClick={async () => {
-                      const url = await uploadImage();
-                      if (url) setFeaturedImage(url);
+                      setUploadingFeatured(true);
+                      try {
+                        const url = await uploadImage();
+                        if (url) setFeaturedImage(url);
+                      } finally {
+                        setUploadingFeatured(false);
+                      }
                     }}
-                    className="rounded bg-secondary px-3 py-2 text-white"
+                    className="rounded bg-secondary px-3 py-2 text-white disabled:opacity-50"
                   >
-                    Upload
+                    {uploadingFeatured ? "Uploading..." : "Upload"}
                   </button>
                 </div>
                 {featuredImage && (
@@ -480,7 +567,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                   />
                 )}
               </div>
-              <div>
+              {/* <div>
                 <label className="mb-1 block text-sm text-gray-700">
                   TikTok Video URL
                 </label>
@@ -490,21 +577,36 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                   className="w-full rounded border px-3 py-2"
                   placeholder="https://www.tiktok.com/@user/video/123..."
                 />
-              </div>
+              </div> */}
             </div>
 
             {/* Excerpt, tags, categories, meta */}
-            <div>
-              <label className="mb-1 block text-sm text-gray-700">
-                Excerpt
-              </label>
-              <textarea
-                value={excerpt}
-                onChange={(e) => setExcerpt(e.target.value)}
-                className="w-full rounded border px-3 py-2"
-                rows={3}
-                placeholder="Short summary (optional)"
-              />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm text-gray-700">
+                  Excerpt
+                </label>
+                <textarea
+                  value={excerpt}
+                  onChange={(e) => setExcerpt(e.target.value)}
+                  className="w-full rounded border px-3 py-2"
+                  rows={3}
+                  placeholder="Short summary (optional)"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-gray-700">
+                  Excerpt (Arabic)
+                </label>
+                <textarea
+                  dir="rtl"
+                  value={excerptAR}
+                  onChange={(e) => setExcerptAR(e.target.value)}
+                  className="w-full rounded border px-3 py-2"
+                  rows={3}
+                  placeholder="ملخص قصير بالعربية (اختياري)"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -520,17 +622,94 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
               </div>
               <div>
                 <label className="mb-1 block text-sm text-gray-700">
-                  Categories (comma separated)
+                  Article Categories
                 </label>
-                <input
-                  value={categoriesInput}
-                  onChange={(e) => setCategoriesInput(e.target.value)}
-                  className="w-full rounded border px-3 py-2"
-                />
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const dropdown =
+                        document.getElementById("category-dropdown");
+                      if (dropdown) {
+                        dropdown.classList.toggle("hidden");
+                      }
+                    }}
+                    className="flex w-full items-center justify-between rounded border bg-white px-3 py-2 text-left"
+                  >
+                    <span>
+                      {selectedCategories.length > 0
+                        ? `${selectedCategories.length} categories selected`
+                        : "Select categories"}
+                    </span>
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                  <div
+                    id="category-dropdown"
+                    className="absolute z-10 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg"
+                  >
+                    {articleCategories.map((category) => (
+                      <div
+                        key={category._id}
+                        className="px-3 py-2 hover:bg-gray-100"
+                      >
+                        <label className="flex cursor-pointer items-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedCategories.includes(category._id)}
+                            onChange={() => handleCategoryChange(category._id)}
+                            className="mr-2"
+                          />
+                          <span>{category.titleEn}</span>
+                          {category.titleAr && (
+                            <span className="mr-2 text-gray-500">
+                              ({category.titleAr})
+                            </span>
+                          )}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {selectedCategories.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedCategories.map((id) => {
+                      const category = articleCategories.find(
+                        (c) => c._id === id,
+                      );
+                      return category ? (
+                        <span
+                          key={id}
+                          className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800"
+                        >
+                          {category.titleEn}
+                          <button
+                            type="button"
+                            onClick={() => handleCategoryChange(id)}
+                            className="mr-1 hover:text-blue-600"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm text-gray-700">
                   Meta Title
@@ -551,7 +730,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                   className="w-full rounded border px-3 py-2"
                 />
               </div>
-            </div>
+            </div> */}
 
             {/* Blocks Builder */}
             <div className="rounded border p-3">
@@ -645,13 +824,22 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                               />
                               <button
                                 type="button"
+                                disabled={uploadingBlockId === b.id}
                                 onClick={async () => {
-                                  const url = await uploadImage();
-                                  if (url) updateBlock(b.id, { imageUrl: url });
+                                  setUploadingBlockId(b.id);
+                                  try {
+                                    const url = await uploadImage();
+                                    if (url)
+                                      updateBlock(b.id, { imageUrl: url });
+                                  } finally {
+                                    setUploadingBlockId(null);
+                                  }
                                 }}
-                                className="rounded bg-secondary px-3 py-2 text-white"
+                                className="rounded bg-secondary px-3 py-2 text-white disabled:opacity-50"
                               >
-                                Upload
+                                {uploadingBlockId === b.id
+                                  ? "Uploading..."
+                                  : "Upload"}
                               </button>
                             </div>
                             {b.imageUrl && (
@@ -724,6 +912,20 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                             modules={textEditorModules}
                             formats={textEditorFormats}
                             placeholder={"Write block text here..."}
+                          />
+                          <label className="mb-2 mt-4 block text-sm font-medium text-gray-700">
+                            Arabic Content
+                          </label>
+                          <ReactQuill
+                            dir="rtl"
+                            theme="snow"
+                            value={b.arabicContent || ""}
+                            onChange={(val: string) =>
+                              updateBlock(b.id, { arabicContent: val })
+                            }
+                            modules={textEditorModules}
+                            formats={textEditorFormats}
+                            placeholder={"اكتب المحتوى العربي هنا..."}
                           />
                         </div>
                       )}

@@ -1,4 +1,6 @@
+import ArticleCategoryModel from "@/app/models/articleCategoryModel";
 import ArticleModel from "@/app/models/articleModel";
+import UserModel from "@/app/models/userModel";
 import { ConnectDB } from "@/config/db";
 import { NextResponse } from "next/server";
 
@@ -7,7 +9,9 @@ const loadDB = async () => {
 };
 
 loadDB();
-
+console.log(
+  "registering users and categories" + UserModel + ArticleCategoryModel,
+);
 // GET - Fetch a single article by slug
 export async function GET(
   req: Request,
@@ -20,7 +24,11 @@ export async function GET(
       return NextResponse.json({ error: "Slug is required" }, { status: 400 });
     }
 
-    const article = await ArticleModel.findOne({ slug });
+    const article = await ArticleModel.findOne({ slug }).populate({
+      path: "categories",
+      model: "articleCategories",
+      select: "titleEn titleAr slug",
+    });
 
     if (!article) {
       return NextResponse.json({ error: "Article not found" }, { status: 404 });

@@ -11,21 +11,24 @@ export interface IContentBlock {
   caption?: string;
   alt?: string;
   layout?: BlockLayout; // img-left = image beside text, img-block = image above text
+  arabicContent?: string; // New optional field for Arabic content
 }
 
 export interface IArticle extends Document {
   _id: string;
   title: string;
+  titleAR?: string;
   slug: string;
   content?: string; // Rich text content (HTML)
   blocks?: IContentBlock[]; // Optional structured blocks for future designs
   excerpt: string;
+  excerptAR?: string;
   featuredImage?: string;
   tikTokVideoUrl?: string;
-  author: mongoose.Types.ObjectId;
+  author?: mongoose.Types.ObjectId;
   status: "draft" | "published" | "archived";
   tags: string[];
-  categories: string[];
+  categories: mongoose.Types.ObjectId[];
   metaTitle?: string;
   metaDescription?: string;
   publishedAt?: Date;
@@ -43,6 +46,11 @@ const ArticleSchema = new Schema<IArticle>(
       required: true,
       trim: true,
     },
+    titleAR: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     slug: {
       type: String,
       required: false,
@@ -50,7 +58,7 @@ const ArticleSchema = new Schema<IArticle>(
       trim: true,
       lowercase: true,
       match: [
-        /^[a-z0-9-]+$/,
+        /^[a-z0-9\s-]+$/,
         "Slug can only contain lowercase letters, numbers, and hyphens",
       ],
     },
@@ -69,6 +77,7 @@ const ArticleSchema = new Schema<IArticle>(
           textHtml: { type: String },
           imageUrl: { type: String },
           caption: { type: String },
+          arabicContent: { type: String },
           alt: { type: String },
           layout: {
             type: String,
@@ -80,6 +89,10 @@ const ArticleSchema = new Schema<IArticle>(
       ),
     ],
     excerpt: {
+      type: String,
+      required: false,
+    },
+    excerptAR: {
       type: String,
       required: false,
     },
@@ -102,11 +115,11 @@ const ArticleSchema = new Schema<IArticle>(
         message: "Please enter a valid TikTok video URL",
       },
     },
-    // author: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "users",
-    //   required: true
-    // },
+    author: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "users",
+      required: false,
+    },
     status: {
       type: String,
       enum: ["draft", "published", "archived"],
@@ -123,16 +136,12 @@ const ArticleSchema = new Schema<IArticle>(
         message: "Maximum 30 tags allowed",
       },
     },
-    categories: {
-      type: [String],
-      default: [],
-      validate: {
-        validator: function (v: string[]) {
-          return v.length <= 15;
-        },
-        message: "Maximum 15 categories allowed",
+    categories: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "articleCategories",
       },
-    },
+    ],
     metaTitle: {
       type: String,
     },

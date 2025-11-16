@@ -9,10 +9,12 @@ import TikTokEmbed from "@/components/TikTokEmbed";
 interface Article {
   _id: string;
   title: string;
+  titleAR?: string;
   slug: string;
   content?: string;
   blocks?: ContentBlock[];
   excerpt: string;
+  excerptAR?: string;
   featuredImage?: string;
   tikTokVideoUrl?: string;
   // author: {
@@ -25,7 +27,9 @@ interface Article {
   // };
   status: "draft" | "published" | "archived";
   tags: string[];
-  categories: string[];
+  categories: Array<
+    string | { _id: string; titleEn: string; titleAr?: string; slug: string }
+  >;
   metaTitle?: string;
   metaDescription?: string;
   publishedAt?: string;
@@ -40,6 +44,7 @@ type BlockLayout = "img-left" | "img-block";
 interface ContentBlock {
   type: "text" | "image" | "imageText";
   textHtml?: string;
+  arabicContent?: string;
   imageUrl?: string;
   caption?: string;
   alt?: string;
@@ -54,6 +59,7 @@ const ArticleDetailPage = () => {
   const [relatedArticles, setRelatedArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isArabic, setIsArabic] = useState(false);
 
   useEffect(() => {
     if (slug) {
@@ -65,6 +71,7 @@ const ArticleDetailPage = () => {
     setLoading(true);
     try {
       // Fetch the article post
+
       const response = await axios.get(`/api/articles/${slug}`);
       setArticle(response.data.data);
 
@@ -102,11 +109,18 @@ const ArticleDetailPage = () => {
       const allArticles = response.data.data;
 
       // Filter related articles based on categories and tags
+      const getCategoryIds = (cats: any[]) =>
+        (Array.isArray(cats) ? cats : [])
+          .map((c: any) => (typeof c === "string" ? c : c?._id))
+          .filter(Boolean);
+      const currentCatIds = getCategoryIds(currentArticle.categories);
+
       const related = allArticles
         .filter((b: Article) => b._id !== currentArticle._id)
         .filter((b: Article) => {
-          const hasCommonCategory = b.categories.some((cat) =>
-            currentArticle.categories.includes(cat),
+          const bCatIds = getCategoryIds(b.categories);
+          const hasCommonCategory = bCatIds.some((id: string) =>
+            currentCatIds.includes(id),
           );
           const hasCommonTag = b.tags.some((tag) =>
             currentArticle.tags.includes(tag),
@@ -140,12 +154,16 @@ const ArticleDetailPage = () => {
 
   const renderBlock = (block: ContentBlock, index: number) => {
     if (block.type === "text") {
+      const htmlVal =
+        isArabic && block.arabicContent && block.arabicContent.trim().length
+          ? block.arabicContent
+          : block.textHtml;
       return (
         <div
           key={index}
           className="prose prose-lg prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 max-w-none"
         >
-          <div dangerouslySetInnerHTML={{ __html: block.textHtml || "" }} />
+          <div dangerouslySetInnerHTML={{ __html: htmlVal || "" }} />
         </div>
       );
     }
@@ -156,7 +174,13 @@ const ArticleDetailPage = () => {
           {block.imageUrl && (
             <img
               src={block.imageUrl}
-              alt={block.alt || article?.title || "Image"}
+              alt={
+                block.alt ||
+                (isArabic
+                  ? article?.titleAR || article?.title
+                  : article?.title) ||
+                "Image"
+              }
               className="w-full rounded-lg object-cover shadow"
             />
           )}
@@ -174,20 +198,36 @@ const ArticleDetailPage = () => {
       if (layout === "img-left") {
         return (
           <div key={index} className="grid items-start gap-6 md:grid-cols-2">
+            <div className="prose prose-lg prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 max-w-none">
+              {(() => {
+                const htmlVal =
+                  isArabic &&
+                  block.arabicContent &&
+                  block.arabicContent.trim().length
+                    ? block.arabicContent
+                    : block.textHtml;
+                return (
+                  <div dangerouslySetInnerHTML={{ __html: htmlVal || "" }} />
+                );
+              })()}
+            </div>
             <div>
               {block.imageUrl && (
                 <img
                   src={block.imageUrl}
-                  alt={block.alt || article?.title || "Image"}
+                  alt={
+                    block.alt ||
+                    (isArabic
+                      ? article?.titleAR || article?.title
+                      : article?.title) ||
+                    "Image"
+                  }
                   className="w-full rounded-lg object-cover shadow"
                 />
               )}
               {block.caption && (
                 <p className="mt-2 text-sm text-gray-500">{block.caption}</p>
               )}
-            </div>
-            <div className="prose prose-lg prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 max-w-none">
-              <div dangerouslySetInnerHTML={{ __html: block.textHtml || "" }} />
             </div>
           </div>
         );
@@ -199,7 +239,13 @@ const ArticleDetailPage = () => {
           {block.imageUrl && (
             <img
               src={block.imageUrl}
-              alt={block.alt || article?.title || "Image"}
+              alt={
+                block.alt ||
+                (isArabic
+                  ? article?.titleAR || article?.title
+                  : article?.title) ||
+                "Image"
+              }
               className="w-full rounded-lg object-cover shadow"
             />
           )}
@@ -207,7 +253,17 @@ const ArticleDetailPage = () => {
             <p className="text-sm text-gray-500">{block.caption}</p>
           )}
           <div className="prose prose-lg prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 max-w-none">
-            <div dangerouslySetInnerHTML={{ __html: block.textHtml || "" }} />
+            {(() => {
+              const htmlVal =
+                isArabic &&
+                block.arabicContent &&
+                block.arabicContent.trim().length
+                  ? block.arabicContent
+                  : block.textHtml;
+              return (
+                <div dangerouslySetInnerHTML={{ __html: htmlVal || "" }} />
+              );
+            })()}
           </div>
         </div>
       );
@@ -250,7 +306,7 @@ const ArticleDetailPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" dir={isArabic ? "rtl" : "ltr"}>
       {/* Breadcrumb */}
       <div className="border-b bg-white">
         <div className="mx-auto max-w-4xl px-4 py-4 sm:px-6 lg:px-8">
@@ -259,8 +315,8 @@ const ArticleDetailPage = () => {
               Home
             </Link>
             <span>/</span>
-            <Link href="/article" className="hover:text-gray-700">
-              Article
+            <Link href="/pages/articles" className="hover:text-gray-700">
+              Articles
             </Link>
             <span>/</span>
             <span className="text-gray-900">{article.title}</span>
@@ -271,17 +327,39 @@ const ArticleDetailPage = () => {
       <article className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Article Header */}
         <header className="mb-8">
+          <div className="mb-4 flex justify-end gap-2">
+            <button
+              onClick={() => setIsArabic(false)}
+              className={`rounded px-3 py-1 text-sm ${!isArabic ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"}`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => setIsArabic(true)}
+              className={`rounded px-3 py-1 text-sm ${isArabic ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"}`}
+            >
+              AR
+            </button>
+          </div>
           {/* Categories */}
           {article.categories.length > 0 && (
             <div className="mb-4 flex flex-wrap gap-2">
-              {article.categories.map((category, index) => (
-                <span
-                  key={index}
-                  className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800"
-                >
-                  {category}
-                </span>
-              ))}
+              {article.categories.map((category, index) => {
+                const label =
+                  typeof category === "string"
+                    ? category
+                    : isArabic && category.titleAr
+                      ? category.titleAr
+                      : category.titleEn;
+                return (
+                  <span
+                    key={index}
+                    className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800"
+                  >
+                    {label}
+                  </span>
+                );
+              })}
             </div>
           )}
 
@@ -289,12 +367,14 @@ const ArticleDetailPage = () => {
           <h1
             className={`${headerFont.className} mb-4 text-4xl font-bold leading-tight text-gray-900 md:text-5xl`}
           >
-            {article.title}
+            {isArabic && article.titleAR ? article.titleAR : article.title}
           </h1>
 
           {/* Excerpt */}
           <p className="mb-6 text-xl leading-relaxed text-gray-600">
-            {article.excerpt}
+            {isArabic && article.excerptAR
+              ? article.excerptAR
+              : article.excerpt}
           </p>
 
           {/* Meta Information */}
@@ -321,8 +401,6 @@ const ArticleDetailPage = () => {
                 {formatDate(article.publishedAt || article.createdAt)}
               </span>
               <span>•</span>
-              <span>{article.readingTime} min read</span>
-              <span>•</span>
               <span>{article.viewCount} views</span>
             </div>
           </div>
@@ -348,7 +426,9 @@ const ArticleDetailPage = () => {
           ) : (
             <div
               className="prose prose-lg prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 max-w-none"
-              dangerouslySetInnerHTML={{ __html: article.content || "" }}
+              dangerouslySetInnerHTML={{
+                __html: (isArabic ? article.content : article.content) || "",
+              }}
             />
           )}
         </div>
@@ -451,10 +531,10 @@ const ArticleDetailPage = () => {
         {/* Navigation */}
         <div className="mt-12 text-center">
           <Link
-            href="/article"
+            href="pages/articles"
             className="inline-flex items-center rounded-md border border-gray-300 bg-white px-6 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
           >
-            ← Back to Article
+            ← Back to Articles
           </Link>
         </div>
       </article>
