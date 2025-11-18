@@ -42,13 +42,14 @@ interface Article {
 
 type BlockLayout = "img-left" | "img-block";
 interface ContentBlock {
-  type: "text" | "image" | "imageText";
+  type: "text" | "image" | "imageText" | "carousel";
   textHtml?: string;
   arabicContent?: string;
   imageUrl?: string;
   caption?: string;
   alt?: string;
   layout?: BlockLayout;
+  images?: { imageUrl: string; alt?: string; caption?: string }[];
 }
 
 const ArticleDetailPage = () => {
@@ -60,6 +61,53 @@ const ArticleDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isArabic, setIsArabic] = useState(false);
+
+  const Carousel: React.FC<{
+    images: { imageUrl: string; alt?: string; caption?: string }[];
+    altFallback?: string;
+  }> = ({ images, altFallback }) => {
+    const [index, setIndex] = useState(0);
+    const count = images.length;
+    if (!count) return null;
+    const current = images[Math.max(0, Math.min(index, count - 1))];
+    const prev = () => setIndex((p) => (p - 1 + count) % count);
+    const next = () => setIndex((p) => (p + 1) % count);
+    return (
+      <div className="relative  space-y-2" key={`carousel-${index}`}>
+        {current?.imageUrl && (
+          <div className="relative  h-[50vh] w-full overflow-hidden rounded-lg bg-gray-100 md:h-[75vh]">
+            <img
+              src={current.imageUrl}
+              alt={current.alt || altFallback || "Image"}
+              className="h-full w-full object-contain"
+            />
+          </div>
+        )}
+        {current?.caption && (
+          <p className="text-sm text-gray-500">{current.caption}</p>
+        )}
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={prev}
+            className="rounded bg-gray-100 px-3 py-1 text-sm"
+          >
+            Prev
+          </button>
+          <span className="text-xs text-gray-500">
+            {index + 1} / {count}
+          </span>
+          <button
+            type="button"
+            onClick={next}
+            className="rounded bg-gray-100 px-3 py-1 text-sm"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (slug) {
@@ -265,6 +313,17 @@ const ArticleDetailPage = () => {
               );
             })()}
           </div>
+        </div>
+      );
+    }
+
+    if (block.type === "carousel") {
+      const altFallback =
+        (isArabic ? article?.titleAR || article?.title : article?.title) ||
+        "Image";
+      return (
+        <div key={index} className=" space-y-2">
+          <Carousel images={block.images || []} altFallback={altFallback} />
         </div>
       );
     }

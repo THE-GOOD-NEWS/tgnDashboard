@@ -5,13 +5,14 @@ import mongoose, { Schema, Document } from "mongoose";
 export type BlockLayout = "img-left" | "img-block";
 
 export interface IContentBlock {
-  type: "text" | "image" | "imageText";
+  type: "text" | "image" | "imageText" | "carousel";
   textHtml?: string;
   imageUrl?: string;
   caption?: string;
   alt?: string;
   layout?: BlockLayout; // img-left = image beside text, img-block = image above text
   arabicContent?: string; // New optional field for Arabic content
+  images?: { imageUrl: string; alt?: string; caption?: string }[];
 }
 
 export interface IArticle extends Document {
@@ -71,7 +72,7 @@ const ArticleSchema = new Schema<IArticle>(
         {
           type: {
             type: String,
-            enum: ["text", "image", "imageText"],
+            enum: ["text", "image", "imageText", "carousel"],
             required: true,
           },
           textHtml: { type: String },
@@ -84,6 +85,16 @@ const ArticleSchema = new Schema<IArticle>(
             enum: ["img-left", "img-block"],
             default: "img-block",
           },
+          images: [
+            new Schema(
+              {
+                imageUrl: { type: String },
+                alt: { type: String },
+                caption: { type: String },
+              },
+              { _id: false },
+            ),
+          ],
         },
         { _id: false },
       ),

@@ -18,7 +18,7 @@ interface ArticleCategory {
 type ModalType = "add" | "edit" | "delete" | "view";
 
 type BlockLayout = "img-left" | "img-block";
-type BlockType = "text" | "image" | "imageText";
+type BlockType = "text" | "image" | "imageText" | "carousel";
 
 interface BlockItem {
   id: string;
@@ -29,6 +29,7 @@ interface BlockItem {
   caption?: string;
   alt?: string;
   layout?: BlockLayout; // img-left = image beside text, img-block = image above text
+  images?: { imageUrl: string; alt?: string; caption?: string }[];
 }
 
 interface ArticleBlocksModalProps {
@@ -88,6 +89,44 @@ const textEditorFormats = [
   "blockquote",
   "code-block",
 ];
+
+const InlineCarousel: React.FC<{
+  images: { imageUrl: string; alt?: string; caption?: string }[];
+}> = ({ images }) => {
+  const [index, setIndex] = useState(0);
+  const count = images.length;
+  if (!count) return null;
+  const current = images[Math.max(0, Math.min(index, count - 1))];
+  const prev = () => setIndex((p) => (p - 1 + count) % count);
+  const next = () => setIndex((p) => (p + 1) % count);
+  return (
+    <div>
+      <div className="relative">
+        {current?.imageUrl && (
+          <img
+            src={current.imageUrl}
+            alt={current.alt || ""}
+            className="h-auto w-full rounded"
+          />
+        )}
+        <div className="mt-2 flex items-center justify-between">
+          <button type="button" onClick={prev} className="rounded bg-gray-100 px-3 py-1 text-sm">
+            Prev
+          </button>
+          <span className="text-xs text-gray-600">
+            {index + 1} / {count}
+          </span>
+          <button type="button" onClick={next} className="rounded bg-gray-100 px-3 py-1 text-sm">
+            Next
+          </button>
+        </div>
+        {current?.caption && (
+          <div className="mt-2 text-center text-sm text-gray-600">{current.caption}</div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
   type,
@@ -230,6 +269,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
         type,
         layout: layout ?? (type === "imageText" ? "img-block" : undefined),
         textHtml: type === "text" ? "<p></p>" : undefined,
+        images: type === "carousel" ? [] : undefined,
       },
     ]);
   };
@@ -274,6 +314,34 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
           });
           const url = res?.[0]?.url || res?.[0]?.fileUrl || undefined;
           resolve(url);
+        };
+        input.click();
+      });
+    } catch (err) {
+      console.error("Image upload failed", err);
+      return undefined;
+    }
+  };
+
+  const uploadImagesBulk = async (): Promise<string[] | undefined> => {
+    try {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.multiple = true;
+      return new Promise((resolve) => {
+        input.onchange = async () => {
+          const files = Array.from(input.files || []);
+          if (!files.length) return resolve(undefined);
+          const processed = await Promise.all(files.map((f) => compressImage(f)));
+          const { uploadFiles } = genUploader<OurFileRouter>();
+          const res: any[] = await uploadFiles("mediaUploader", {
+            files: processed,
+          });
+          const urls = res
+            .map((r) => r?.url || r?.fileUrl)
+            .filter((u: any) => typeof u === "string");
+          resolve(urls);
         };
         input.click();
       });
@@ -455,6 +523,9 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                         dangerouslySetInnerHTML={{ __html: b.textHtml || "" }}
                       />
                     </div>
+                  )}
+                  {b.type === "carousel" && (
+                    <InlineCarousel images={b.images || []} />
                   )}
                 </div>
               ))}
@@ -756,13 +827,20 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                 >
                   + Image above text
                 </button>
-                <button
-                  type="button"
-                  onClick={() => addBlock("image", "img-block")}
-                  className="rounded border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-50"
-                >
-                  + Image only
-                </button>
+              <button
+                type="button"
+                onClick={() => addBlock("image", "img-block")}
+                className="rounded border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-50"
+              >
+                + Image only
+              </button>
+              <button
+                type="button"
+                onClick={() => addBlock("carousel")}
+                className="rounded border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-50"
+              >
+                + Carousel
+              </button>
               </div>
 
               {blocks.length === 0 ? (
@@ -805,7 +883,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                         </div>
                       </div>
 
-                      {b.type !== "text" && (
+                      {b.type !== "text" && b.type !== "carousel" && (
                         <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                           <div>
                             <label className="mb-1 block text-sm text-gray-700">
@@ -898,7 +976,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                         </div>
                       )}
 
-                      {b.type !== "image" && (
+                      {(b.type === "text" || b.type === "imageText") && (
                         <div>
                           <label className="mb-2 block text-sm font-medium text-gray-700">
                             Text
@@ -927,6 +1005,160 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                             formats={textEditorFormats}
                             placeholder={"اكتب المحتوى العربي هنا..."}
                           />
+                        </div>
+                      )}
+
+                      {b.type === "carousel" && (
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-sm font-medium text-gray-700">Carousel</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateBlock(b.id, {
+                                  images: [...(b.images || []), { imageUrl: "", alt: "", caption: "" }],
+                                })
+                              }
+                              className="rounded bg-gray-100 px-2 py-1 text-xs"
+                            >
+                              Add Image
+                            </button>
+                            <button
+                              type="button"
+                              disabled={uploadingBlockId === `${b.id}:bulk`}
+                              onClick={async () => {
+                                setUploadingBlockId(`${b.id}:bulk`);
+                                try {
+                                  const urls = await uploadImagesBulk();
+                                  if (urls && urls.length) {
+                                    const next = [
+                                      ...(b.images || []),
+                                      ...urls.map((u) => ({ imageUrl: u, alt: "", caption: "" })),
+                                    ];
+                                    updateBlock(b.id, { images: next });
+                                  }
+                                } finally {
+                                  setUploadingBlockId(null);
+                                }
+                              }}
+                              className="rounded bg-secondary px-2 py-1 text-xs text-white disabled:opacity-50"
+                            >
+                              {uploadingBlockId === `${b.id}:bulk` ? "Uploading..." : "Upload Images"}
+                            </button>
+                          </div>
+                          {(b.images || []).length === 0 ? (
+                            <p className="text-sm text-gray-600">No images added.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {(b.images || []).map((img, i) => (
+                                <div key={i} className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                  <div>
+                                    <label className="mb-1 block text-sm text-gray-700">Image URL</label>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        value={img.imageUrl || ""}
+                                        onChange={(e) => {
+                                          const arr = [...(b.images || [])];
+                                          arr[i] = { ...arr[i], imageUrl: e.target.value };
+                                          updateBlock(b.id, { images: arr });
+                                        }}
+                                        className="w-full rounded border px-3 py-2"
+                                        placeholder="https://..."
+                                      />
+                                      <button
+                                        type="button"
+                                        disabled={uploadingBlockId === `${b.id}:${i}`}
+                                        onClick={async () => {
+                                          setUploadingBlockId(`${b.id}:${i}`);
+                                          try {
+                                            const url = await uploadImage();
+                                            if (url) {
+                                              const arr = [...(b.images || [])];
+                                              arr[i] = { ...arr[i], imageUrl: url };
+                                              updateBlock(b.id, { images: arr });
+                                            }
+                                          } finally {
+                                            setUploadingBlockId(null);
+                                          }
+                                        }}
+                                        className="rounded bg-secondary px-3 py-2 text-white disabled:opacity-50"
+                                      >
+                                        {uploadingBlockId === `${b.id}:${i}` ? "Uploading..." : "Upload"}
+                                      </button>
+                                    </div>
+                                    {img.imageUrl && (
+                                      <img src={img.imageUrl} alt={img.alt || ""} className="mt-2 h-24 w-auto rounded" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-sm text-gray-700">Alt text</label>
+                                    <input
+                                      value={img.alt || ""}
+                                      onChange={(e) => {
+                                        const arr = [...(b.images || [])];
+                                        arr[i] = { ...arr[i], alt: e.target.value };
+                                        updateBlock(b.id, { images: arr });
+                                      }}
+                                      className="w-full rounded border px-3 py-2"
+                                    />
+                                    <label className="mb-1 mt-2 block text-sm text-gray-700">Caption</label>
+                                    <input
+                                      value={img.caption || ""}
+                                      onChange={(e) => {
+                                        const arr = [...(b.images || [])];
+                                        arr[i] = { ...arr[i], caption: e.target.value };
+                                        updateBlock(b.id, { images: arr });
+                                      }}
+                                      className="w-full rounded border px-3 py-2"
+                                    />
+                                    <div className="mt-2 flex gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const arr = [...(b.images || [])];
+                                          const tmp = arr[i - 1];
+                                          if (typeof tmp !== "undefined") {
+                                            arr[i - 1] = arr[i];
+                                            arr[i] = tmp;
+                                            updateBlock(b.id, { images: arr });
+                                          }
+                                        }}
+                                        className="rounded bg-gray-100 px-2 py-1 text-xs"
+                                      >
+                                        Move Up
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const arr = [...(b.images || [])];
+                                          const tmp = arr[i + 1];
+                                          if (typeof tmp !== "undefined") {
+                                            arr[i + 1] = arr[i];
+                                            arr[i] = tmp;
+                                            updateBlock(b.id, { images: arr });
+                                          }
+                                        }}
+                                        className="rounded bg-gray-100 px-2 py-1 text-xs"
+                                      >
+                                        Move Down
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const arr = [...(b.images || [])];
+                                          arr.splice(i, 1);
+                                          updateBlock(b.id, { images: arr });
+                                        }}
+                                        className="rounded bg-red-100 px-2 py-1 text-xs text-red-700"
+                                      >
+                                        Remove Image
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
