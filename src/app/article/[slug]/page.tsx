@@ -371,11 +371,6 @@ const ArticleDetailPage = () => {
           </h1>
 
           {/* Excerpt */}
-          <p className="mb-6 text-xl leading-relaxed text-gray-600">
-            {isArabic && article.excerptAR
-              ? article.excerptAR
-              : article.excerpt}
-          </p>
 
           {/* Meta Information */}
           <div className="mb-6 flex flex-wrap items-center gap-6 text-sm text-gray-500">
@@ -415,6 +410,11 @@ const ArticleDetailPage = () => {
               />
             </div>
           )}
+          <p className="mb-6 text-xl leading-relaxed text-gray-600">
+            {isArabic && article.excerptAR
+              ? article.excerptAR
+              : article.excerpt}
+          </p>
         </header>
 
         {/* Article Content (blocks-first, content fallback) */}
@@ -519,7 +519,7 @@ const ArticleDetailPage = () => {
                         )}
                       </span>
                       <span className="mx-2">•</span>
-                      <span>{relatedArticle.readingTime} min read</span>
+                      {/* <span>{relatedArticle.readingTime} min read</span> */}
                     </div>
                   </Link>
                 </article>
@@ -531,7 +531,7 @@ const ArticleDetailPage = () => {
         {/* Navigation */}
         <div className="mt-12 text-center">
           <Link
-            href="pages/articles"
+            href="/pages/articles"
             className="inline-flex items-center rounded-md border border-gray-300 bg-white px-6 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
           >
             ← Back to Articles
