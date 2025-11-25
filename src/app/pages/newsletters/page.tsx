@@ -1,19 +1,24 @@
-'use client'
+"use client";
 
-import CollectionModal from '@/components/CategoryModal';
-import DefaultLayout from '@/components/Layouts/DefaultLayout';
-import NewSlettersModal from '@/components/NewSlettersModal';
-import { Collection, Newsletters } from '@/interfaces/interfaces';
-import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import CollectionModal from "@/components/CategoryModal";
+import DefaultLayout from "@/components/Layouts/DefaultLayout";
+import NewSlettersModal from "@/components/NewSlettersModal";
+import { Collection, Newsletters } from "@/interfaces/interfaces";
+import axios from "axios";
+import React, { useEffect, useState } from "react";
 
 const NewSlettersPage = () => {
   const [newSletters, setNewSletters] = useState<Newsletters[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [modalType, setModalType] = useState<'edit' | 'delete' | 'add' | null>(null);
-//   const [selectedCollection, setSelectedCollection] = useState<Collection>({ _id: '', collectionName: '' });
-  const [selectedNewsletter, setSelectedNewsletter] = useState<Newsletters>({ _id: '', email: '' });
+  const [modalType, setModalType] = useState<"edit" | "delete" | "add" | null>(
+    null,
+  );
+  //   const [selectedCollection, setSelectedCollection] = useState<Collection>({ _id: '', collectionName: '' });
+  const [selectedNewsletter, setSelectedNewsletter] = useState<Newsletters>({
+    _id: "",
+    email: "",
+  });
 
   useEffect(() => {
     const fetchNewsletters = async () => {
@@ -28,47 +33,53 @@ const NewSlettersPage = () => {
     fetchNewsletters();
   }, [page]);
 
-  const openModal = (type: 'edit' | 'delete' | 'add', newSletter?: Newsletters) => {
+  const openModal = (
+    type: "edit" | "delete" | "add",
+    newSletter?: Newsletters,
+  ) => {
     setModalType(type);
-    setSelectedNewsletter(newSletter || { _id: '', email:''});
+    setSelectedNewsletter(newSletter || { _id: "", email: "" });
   };
 
   return (
     <DefaultLayout>
-      <div className="px-1 overflow-hidden md:px-2 py-2 md:py-4 w-full h-auto min-h-screen flex flex-col justify-start items-center gap-4 bg-backgroundColor">
-        <div
-          className=" w-[97%] flex justify-end  "
-        >
+      <div className="flex h-auto min-h-screen w-full flex-col items-center justify-start gap-4 overflow-hidden bg-backgroundColor px-1 py-2 md:px-2 md:py-4">
+        <div className=" flex w-[97%] justify-end  ">
           <button
-          className='hover:cursor-pointer text-creamey bg-primary rounded-2xl text-sm px-4 py-2'
-          onClick={() => openModal('add')}
-          >Add Newsletter</button>
+            className="rounded-2xl bg-primary px-4 py-2 text-sm text-creamey hover:cursor-pointer"
+            onClick={() => openModal("add")}
+          >
+            Add Newsletter
+          </button>
         </div>
 
         {/* Table */}
         {newSletters.length > 0 ? (
-          <table className="w-[97%] text-left border border-gray-300 rounded">
-            <thead className="bg-secondary text-white text-sm">
+          <table className="w-[97%] rounded border border-gray-300 text-left">
+            <thead className="bg-secondary text-sm text-white">
               <tr>
-                <th className="p-2 border">#</th>
-                <th className="p-2 border">email</th>
-                <th className="p-2 border">Actions</th>
+                <th className="border p-2">#</th>
+                <th className="border p-2">email</th>
+                <th className="border p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
               {newSletters.map((newSletter, index) => (
-                <tr key={index} className="bg-white text-gray-600 hover:bg-gray-50 text-sm">
-                  <td className="p-2 border">{(page - 1) * 10 + index + 1}</td>
-                  <td className="p-2 border">{newSletter.email}</td>
-                  <td className="p-2 border space-x-2">
+                <tr
+                  key={index}
+                  className="bg-white text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  <td className="border p-2">{(page - 1) * 10 + index + 1}</td>
+                  <td className="border p-2">{newSletter.email}</td>
+                  <td className="space-x-2 border p-2">
                     <button
-                      onClick={() => openModal('edit', newSletter)}
+                      onClick={() => openModal("edit", newSletter)}
                       className="text-blue-600 underline"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => openModal('delete', newSletter)}
+                      onClick={() => openModal("delete", newSletter)}
                       className="text-red-600 underline"
                     >
                       Delete
@@ -83,17 +94,19 @@ const NewSlettersPage = () => {
         )}
 
         {/* Pagination */}
-        <div className="flex items-center gap-4 mt-4">
+        <div className="mt-4 flex items-center gap-4">
           <button
-            className="px-4 py-2 bg-accent text-white rounded disabled:opacity-50"
+            className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50"
             onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
             disabled={page === 1}
           >
             Previous
           </button>
-          <span className="text-lg">Page {page} of {totalPages}</span>
+          <span className="text-lg">
+            Page {page} of {totalPages}
+          </span>
           <button
-            className="px-4 py-2 bg-accent text-white rounded disabled:opacity-50"
+            className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50"
             onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
             disabled={page === totalPages}
           >
@@ -110,7 +123,7 @@ const NewSlettersPage = () => {
               setModalType(null);
             }}
             refreshNewsletters={() => {
-              axios.get(`/api/newSletters?page=${page}`).then(res => {
+              axios.get(`/api/newSletters?page=${page}`).then((res) => {
                 setNewSletters(res.data.data);
               });
             }}

@@ -1,6 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import ChartOne from "../Charts/ChartOne";
 import ChartTwo from "../Charts/ChartTwo";
 import ChartSubscriptions from "../Charts/ChartSubscriptions";
@@ -18,6 +19,26 @@ const ChartThree = dynamic(() => import("@/components/Charts/ChartThree"), {
 });
 
 const ECommerce: React.FC = () => {
+  const [newsletterStats, setNewsletterStats] = useState({
+    allTime: 0,
+    thisMonth: 0,
+    thisWeek: 0,
+    today: 0,
+  });
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const res = await axios.get("/api/newSletters?stats=summary");
+        const data = res?.data?.data;
+        if (data) setNewsletterStats(data);
+      } catch (e) {
+        console.error("Failed to load newsletter summary", e);
+      }
+    };
+    fetchSummary();
+  }, []);
+
   return (
     <div className="space-y-10 px-2  pb-4">
       {/* <div className="grid  px-1 lg:px-2  grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-4 2xl:gap-7.5">
@@ -108,9 +129,27 @@ const ECommerce: React.FC = () => {
       </div> */}
 
       <div className="mt-4 grid grid-cols-12 gap-4  md:gap-6  2xl:gap-7.5">
+        <div className="col-span-12 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <CardDataStats
+            title="All-time Newsletters"
+            total={newsletterStats.allTime}
+            rate=""
+          />
+          <CardDataStats
+            title="This Month"
+            total={newsletterStats.thisMonth}
+            rate=""
+          />
+          <CardDataStats
+            title="This Week"
+            total={newsletterStats.thisWeek}
+            rate=""
+          />
+          <CardDataStats title="Today" total={newsletterStats.today} rate="" />
+        </div>
         <ChartSubscriptions />
         {/* <ChartOne /> */}
-        <ChartTwo />
+        {/* <ChartTwo /> */}
         {/* <ChartThree /> */}
         {/* <MapOne /> */}
         {/* <div className="col-span-12 xl:col-span-8">

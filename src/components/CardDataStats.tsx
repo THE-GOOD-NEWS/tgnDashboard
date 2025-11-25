@@ -1,12 +1,12 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect, useMemo, useState } from "react";
 
 interface CardDataStatsProps {
   title: string;
-  total: string;
+  total: number | string;
   rate: string;
   levelUp?: boolean;
   levelDown?: boolean;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 const CardDataStats: React.FC<CardDataStatsProps> = ({
@@ -17,19 +17,46 @@ const CardDataStats: React.FC<CardDataStatsProps> = ({
   levelDown,
   children,
 }) => {
-  return (
-    <div className="rounded-sm border border-stroke bg-white px-7.5 py-6 shadow-default dark:border-strokedark dark:bg-boxdark">
-      <div className="flex h-11.5 w-11.5 items-center justify-center rounded-full bg-meta-2 dark:bg-meta-4">
-        {children}
-      </div>
+  const [displayTotal, setDisplayTotal] = useState<string>(
+    typeof total === "number" ? total.toLocaleString() : total,
+  );
 
-      <div className="mt-4 flex items-end justify-between">
-        <div>
-          <h4 className="text-title-md font-bold text-black dark:text-white">
-            {total}
-          </h4>
-          <span className="text-sm font-medium">{title}</span>
-        </div>
+  const numericTotal = useMemo(() => {
+    if (typeof total === "number") return total;
+    const parsed = parseFloat(String(total).replace(/[^0-9.-]/g, ""));
+    return isNaN(parsed) ? null : parsed;
+  }, [total]);
+
+  useEffect(() => {
+    if (numericTotal === null) {
+      setDisplayTotal(typeof total === "string" ? total : String(total));
+      return;
+    }
+    const duration = 1000;
+    const startValue = 0;
+    const startTime = performance.now();
+    const step = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const current = Math.round(
+        startValue + (numericTotal - startValue) * progress,
+      );
+      setDisplayTotal(current.toLocaleString());
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [numericTotal, total]);
+
+  return (
+    <div className="rounded-lg border border-stroke bg-primary px-7.5 py-6 shadow-default dark:border-strokedark dark:bg-boxdark">
+      {/* <div className="flex h-11.5 w-11.5 items-center justify-center rounded-full bg-meta-2 dark:bg-meta-4">
+        {children}
+      </div> */}
+
+      <div className="mt-4 flex flex-col items-center justify-center  gap-2">
+        <h4 className="text-title-xl font-bold text-white dark:text-white">
+          {displayTotal}
+        </h4>
+        <span className="text-sm font-medium text-white">{title}</span>
 
         <span
           className={`flex items-center gap-1 text-sm font-medium ${

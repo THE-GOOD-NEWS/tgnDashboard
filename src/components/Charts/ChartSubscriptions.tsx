@@ -18,7 +18,7 @@ const options: ApexOptions = {
     toolbar: { show: false },
     zoom: { enabled: false },
   },
-  colors: ["#FF9ACC", "#FFFF32", "#81C8BB"],
+  colors: ["#000000"],
   legend: {
     position: "top",
     horizontalAlign: "left",
@@ -49,7 +49,7 @@ const options: ApexOptions = {
     shared: true,
     intersect: false,
     y: {
-      formatter: (value) => `${Math.round(value).toLocaleString()} EGP`,
+      formatter: (value) => `${Math.round(value).toLocaleString()}`,
     },
   },
   xaxis: {
@@ -64,7 +64,7 @@ const options: ApexOptions = {
   },
   yaxis: {
     title: {
-      text: "Amount (EGP)",
+      text: "Subscribers",
       style: {
         fontSize: "12px",
       },
@@ -98,9 +98,7 @@ const options: ApexOptions = {
 
 const ChartSubscriptions: React.FC = () => {
   const [series, setSeries] = useState<{ name: string; data: number[] }[]>([
-    { name: "Revenue", data: [] },
-    { name: "Cost", data: [] },
-    { name: "Profit", data: [] },
+    { name: "Subscribers", data: [] },
   ]);
   const [categories, setCategories] = useState<string[]>([]);
   const [year, setYear] = useState(new Date().getFullYear().toString());
@@ -109,9 +107,7 @@ const ChartSubscriptions: React.FC = () => {
   // Define interface for monthly data item
   interface MonthlyDataItem {
     month: string;
-    revenue: number;
-    cost: number;
-    profit: number;
+    count: number;
   }
 
   // Month names for chart labels
@@ -133,133 +129,31 @@ const ChartSubscriptions: React.FC = () => {
   useEffect(() => {
     const fetchSubscriptionData = async () => {
       try {
-        // Generate all months for the selected year
-        const allMonths = [];
+        // Initialize months with zeroes
+        const fullYearData: MonthlyDataItem[] = monthNames.map((m) => ({
+          month: m,
+          count: 0,
+        }));
 
-        // Create full year data structure
-        const fullYearData: MonthlyDataItem[] = [];
-        for (let i = 0; i < 12; i++) {
-          const monthName = monthNames[i]; // Only use month name without year
-          allMonths.push(monthName);
+        const url = `/api/newSletters?stats=monthly&year=${year}`;
+        const response = await axios.get(url);
+        const rows = response?.data?.data?.monthly || [];
+        rows.forEach((r: any) => {
+          const idx = monthNames.findIndex((m) => m === r.month);
+          if (idx >= 0) fullYearData[idx] = { month: r.month, count: r.count };
+        });
 
-          // Initialize with zero values
-          fullYearData.push({
-            month: monthName,
-            revenue: 0,
-            cost: 0,
-            profit: 0,
-          });
-        }
-
-        // Fetch data for the entire year with a single API call
-        try {
-          const url = `/api/analytics/subscriptions?year=${year}`;
-          const response = await axios.get(url);
-          console.log(JSON.stringify(response.data.data.monthlyData));
-          let hasSampleData = false;
-
-          if (
-            response.data &&
-            response.data.data &&
-            response.data.data.monthlyData
-          ) {
-            const yearlyData = response.data.data.monthlyData;
-
-            // Arabic month names mapping as fallback
-            const arabicMonthsMap: { [key: string]: number } = {
-              يناير: 0, // January
-              فبراير: 1, // February
-              مارس: 2, // March
-              أبريل: 3, // April
-              مايو: 4, // May
-              يونيو: 5, // June
-              يوليو: 6, // July
-              أغسطس: 7, // August
-              سبتمبر: 8, // September
-              أكتوبر: 9, // October
-              نوفمبر: 10, // November
-              ديسمبر: 11, // December
-            };
-
-            // Process the yearly data and distribute among months
-            yearlyData.forEach((monthData: any) => {
-              // Extract month from the month string (format: "MMM YYYY")
-              const monthStr = monthData.month.split(" ")[0]; // Get month name
-
-              // Try to get month index from English month name first
-              let monthIndex = monthNames.findIndex((m) => m === monthStr);
-
-              // If not found, try Arabic month name as fallback
-              if (
-                monthIndex === -1 &&
-                arabicMonthsMap[monthStr] !== undefined
-              ) {
-                monthIndex = arabicMonthsMap[monthStr];
-                console.log(
-                  `Using Arabic month fallback for: ${monthStr} -> ${monthIndex}`,
-                );
-              }
-
-              if (
-                monthIndex !== undefined &&
-                monthIndex >= 0 &&
-                monthIndex < 12
-              ) {
-                // Assign data to the correct month
-                fullYearData[monthIndex] = {
-                  month: monthNames[monthIndex],
-                  revenue: monthData.revenue || 0,
-                  cost: monthData.cost || 0,
-                  profit: monthData.profit || 0,
-                };
-              }
-
-              // Check if this is sample data
-              if (monthData.isSample === true) {
-                hasSampleData = true;
-              }
-            });
-          }
-
-          setIsSampleData(hasSampleData);
-        } catch (error) {
-          console.error("Error fetching yearly subscription data:", error);
-          // Keep the default zero values for all months
-        }
-
-        // Extract data for chart
         const months = fullYearData.map((item) => item.month);
-        const revenueData = fullYearData.map((item) => item.revenue);
-        const costData = fullYearData.map((item) => item.cost);
-        const profitData = fullYearData.map((item) => item.profit);
-
-        // Update chart data
+        const counts = fullYearData.map((item) => item.count);
         setCategories(months);
-        setSeries([
-          { name: "Revenue", data: revenueData },
-          { name: "Cost", data: costData },
-          { name: "Profit", data: profitData },
-        ]);
+        setSeries([{ name: "Subscribers", data: counts }]);
       } catch (error) {
-        console.error("Error fetching subscription data:", error);
+        console.error("Error fetching monthly subscribers:", error);
 
         // Set default data with zeros if API doesn't return expected format
-        const defaultMonths = monthNames.map((month) => `${month} ${year}`);
+        const defaultMonths = monthNames.map((month) => month);
         setCategories(defaultMonths);
-        setSeries([
-          {
-            name: "Revenue",
-            data: Array(12).fill(0),
-          },
-          {
-            name: "Cost",
-            data: Array(12).fill(0),
-          },
-          {
-            name: "Profit",
-            data: Array(12).fill(0),
-          },
-        ]);
+        setSeries([{ name: "Subscribers", data: Array(12).fill(0) }]);
 
         // Set sample data flag to false since we're showing actual zeros
         setIsSampleData(false);
@@ -287,11 +181,9 @@ const ChartSubscriptions: React.FC = () => {
             <h4
               className={`${headerFont.className} text-2xl font-semibold tracking-normal text-secondary`}
             >
-              Subscription Analytics
+              Newsletter Subscribers
             </h4>
-            <p className="text-sm text-gray-500">
-              Revenue, Cost, and Profit by Month
-            </p>
+            <p className="text-sm text-gray-500">Monthly subscriber counts</p>
             {isSampleData && (
               <span className="mt-1 inline-block rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white">
                 Sample Data
