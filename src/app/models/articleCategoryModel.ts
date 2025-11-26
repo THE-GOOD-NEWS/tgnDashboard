@@ -1,7 +1,6 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IArticleCategory extends Document {
-  _id: string;
   titleEn: string;
   titleAr: string;
   slug: string;
@@ -20,13 +19,16 @@ const ArticleCategorySchema = new Schema<IArticleCategory>(
       unique: true,
       trim: true,
       lowercase: true,
-      match: [/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"],
+      match: [
+        /^[a-z0-9-]+$/,
+        "Slug can only contain lowercase letters, numbers, and hyphens",
+      ],
     },
     status: { type: String, enum: ["active", "inactive"], default: "active" },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 ArticleCategorySchema.index({ slug: 1 }, { unique: true });
