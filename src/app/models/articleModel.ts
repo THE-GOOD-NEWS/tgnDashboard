@@ -16,7 +16,7 @@ export interface IContentBlock {
 }
 
 export interface IArticle extends Document {
-  _id: string;
+  // _id: string;
   title: string;
   titleAR?: string;
   slug: string;
