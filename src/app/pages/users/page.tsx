@@ -1,10 +1,10 @@
 "use client";
 
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
-import { IUser } from "@/app/models/userModel";
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { IUser } from "@/interfaces/interfaces";
 
 const UsersPage = () => {
   const [users, setUsers] = useState<IUser[]>([]);
@@ -78,25 +78,25 @@ const UsersPage = () => {
     }
   };
 
-  const handleSubscriptionClick = (user: IUser) => {
-    if (user.subscription?.subscribed) {
-      setSubscriptionModal({ type: "view", user });
-    } else {
-      // Fetch packages from API when opening the add modal
-      axios
-        .get("/api/packages?all=true")
-        .then((res) => {
-          setAvailablePackages(
-            res.data.data.map((pkg: any) => ({ _id: pkg._id, name: pkg.name })),
-          );
-          setSubscriptionModal({ type: "add", user });
-        })
-        .catch(() => {
-          setAvailablePackages([]);
-          setSubscriptionModal({ type: "add", user });
-        });
-    }
-  };
+  // const handleSubscriptionClick = (user: IUser) => {
+  //   if (user.subscription?.subscribed) {
+  //     setSubscriptionModal({ type: "view", user });
+  //   } else {
+  //     // Fetch packages from API when opening the add modal
+  //     axios
+  //       .get("/api/packages?all=true")
+  //       .then((res) => {
+  //         setAvailablePackages(
+  //           res.data.data.map((pkg: any) => ({ _id: pkg._id, name: pkg.name })),
+  //         );
+  //         setSubscriptionModal({ type: "add", user });
+  //       })
+  //       .catch(() => {
+  //         setAvailablePackages([]);
+  //         setSubscriptionModal({ type: "add", user });
+  //       });
+  //   }
+  // };
 
   return (
     <DefaultLayout>
@@ -572,34 +572,34 @@ const SubscriptionInfoModal = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchSub = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch latest subscription data
-        const res = await axios.get(
-          `/api/subscriptions?id=${user.subscription?._id}`,
-        );
-        setSubData(res.data.data[0] || user.subscription);
-        // Fetch packages if not already loaded
-        if (!availablePackages.length) {
-          const pkgRes = await axios.get("/api/packages?all=true");
-          setAvailablePackages(
-            pkgRes.data.data.map((pkg: any) => ({
-              _id: pkg._id,
-              name: pkg.name,
-            })),
-          );
-        }
-      } catch (err) {
-        setError("Failed to load subscription data");
-      }
-      setLoading(false);
-    };
-    fetchSub();
-    // eslint-disable-next-line
-  }, [user]);
+  // useEffect(() => {
+  //   const fetchSub = async () => {
+  //     setLoading(true);
+  //     setError(null);
+  //     try {
+  //       // Fetch latest subscription data
+  //       const res = await axios.get(
+  //         `/api/subscriptions?id=${user.subscription?._id}`,
+  //       );
+  //       setSubData(res.data.data[0] || user.subscription);
+  //       // Fetch packages if not already loaded
+  //       if (!availablePackages.length) {
+  //         const pkgRes = await axios.get("/api/packages?all=true");
+  //         setAvailablePackages(
+  //           pkgRes.data.data.map((pkg: any) => ({
+  //             _id: pkg._id,
+  //             name: pkg.name,
+  //           })),
+  //         );
+  //       }
+  //     } catch (err) {
+  //       setError("Failed to load subscription data");
+  //     }
+  //     setLoading(false);
+  //   };
+  //   fetchSub();
+  //   // eslint-disable-next-line
+  // }, [user]);
 
   if (loading)
     return (

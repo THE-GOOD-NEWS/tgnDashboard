@@ -3,7 +3,23 @@ export interface PackageCard {
   image: string;
   points: string[];
 }
-
+export interface IUser {
+  _id: string;
+  username: string;
+  email: string;
+  password: string;
+  role: "admin" | "moderator" | "customer";
+  emailVerified?: boolean;
+  firstName?: string;
+  lastName?: string;
+  // subscription: ISubscription;
+  // isSubscribed: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  imageURL?: string;
+  points?: number;
+  comparePassword(candidatePassword: string): Promise<boolean>;
+}
 export interface PackageItem {
   value: string;
   included: boolean;
