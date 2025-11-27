@@ -2,7 +2,14 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from '@/utils/auth';
 
+const CANONICAL_HOST = process.env.CANONICAL_HOST;
+
 export function middleware(request: NextRequest) {
+  if (CANONICAL_HOST && request.nextUrl.hostname !== CANONICAL_HOST) {
+    const url = new URL(request.url);
+    url.hostname = CANONICAL_HOST;
+    return NextResponse.redirect(url);
+  }
   const protectedRoutes = ["/pages"];
   const publicRoutes = ["/login", "/create-admin"];
   const path = request.nextUrl.pathname;
@@ -12,7 +19,7 @@ export function middleware(request: NextRequest) {
     path.startsWith('/_next') ||
     path.startsWith('/static') ||
     path.startsWith('/images') ||
-    path.startsWith('/api/auth') ||
+    path.startsWith('/api') ||
     path === '/favicon.ico'
   ) {
     return NextResponse.next();
@@ -51,6 +58,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
-}; 
+};
