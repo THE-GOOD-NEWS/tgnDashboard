@@ -2,32 +2,18 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
-const IS_PROD = process.env.NODE_ENV === "production";
 
 export function setToken(token: string) {
-  const store = cookies();
-  store.set("token", token, {
+  cookies().set("token", token, {
     httpOnly: true,
-    secure: IS_PROD,
-    sameSite: COOKIE_DOMAIN ? "none" : "lax",
-    domain: COOKIE_DOMAIN,
-    path: "/",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
     maxAge: 60 * 60 * 24 * 30,
   });
 }
 
 export function removeToken() {
-  const store = cookies();
-  store.set("token", "", {
-    httpOnly: true,
-    secure: IS_PROD,
-    sameSite: COOKIE_DOMAIN ? "none" : "lax",
-    domain: COOKIE_DOMAIN,
-    path: "/",
-    maxAge: 0,
-  });
-  store.delete("token");
+  cookies().delete("token");
 }
 
 export function getToken() {

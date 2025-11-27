@@ -1,22 +1,12 @@
 import { NextResponse } from 'next/server';
+import { removeToken } from '@/utils/auth';
+import { Router } from 'next/router';
 
-export const dynamic = 'force-dynamic';
-
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
-const IS_PROD = process.env.NODE_ENV === 'production';
-
-export async function GET(request: Request) {
+export async function GET(request:Request) {
   try {
-    const res = NextResponse.redirect(new URL('/login', request.url));
-    res.cookies.set('token', '', {
-      httpOnly: true,
-      secure: IS_PROD,
-      sameSite: COOKIE_DOMAIN ? 'none' : 'lax',
-      domain: COOKIE_DOMAIN,
-      path: '/',
-      maxAge: 0,
-    });
-    return res;
+    // Remove token from cookies
+    removeToken();
+    return NextResponse.redirect(new URL('/login', request.url));
 
   } catch (error) {
     console.error('Logout error:', error);
@@ -25,4 +15,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+} 
