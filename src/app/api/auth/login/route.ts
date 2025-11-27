@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import UserModel from "@/app/models/userModel";
 import { ConnectDB } from "@/config/db";
 import { generateToken } from "@/utils/auth";
@@ -36,16 +38,18 @@ export async function POST(request: Request) {
       { status: 200 },
     );
 
-    // Set token in cookie with proper configuration
+    // Set token cookie with shared domain if configured
+    const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
+    const IS_PROD = process.env.NODE_ENV === "production";
     response.cookies.set({
       name: "token",
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: IS_PROD,
+      sameSite: COOKIE_DOMAIN ? "none" : "lax",
+      domain: COOKIE_DOMAIN,
       path: "/",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      // Omit domain to default to current host; avoids mismatch in dev
+      maxAge: 60 * 60 * 24 * 30,
     });
 
     return response;
