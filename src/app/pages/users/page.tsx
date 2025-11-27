@@ -5,6 +5,8 @@ import axios from "axios";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { IUser } from "@/interfaces/interfaces";
+import { UploadButton as UTUploadButton } from "@/utils/uploadthing";
+import { compressImage } from "@/utils/imageCompression";
 
 const UsersPage = () => {
   const [users, setUsers] = useState<IUser[]>([]);
@@ -24,6 +26,25 @@ const UsersPage = () => {
   const [availablePackages, setAvailablePackages] = useState<
     { _id: string; name: string }[]
   >([]);
+
+  // Avatar previews for modals
+  const [newUserImageURL, setNewUserImageURL] = useState<string>("");
+  const [newUsername, setNewUsername] = useState<string>("");
+  const [editImageURL, setEditImageURL] = useState<string>("");
+
+  // Compress images before upload (UploadThing hook)
+  const beforeUploadCompress = async (files: File[]) => {
+    const processed = await Promise.all(
+      files.map((file) =>
+        file.type.startsWith("image/") ? compressImage(file) : file,
+      ),
+    );
+    return processed;
+  };
+
+  useEffect(() => {
+    setEditImageURL(selectedUser?.imageURL || "");
+  }, [selectedUser]);
 
   // Debounce search query
   useEffect(() => {
@@ -240,7 +261,7 @@ const UsersPage = () => {
         {/* Add User Modal */}
         {modalType === "add" && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="w-96 rounded-lg bg-white p-6">
+            <div className="max-h-[90vh] w-96 overflow-y-scroll rounded-lg bg-white p-6">
               <h2 className="mb-4 text-xl font-bold">Add New User</h2>
               <form
                 onSubmit={async (e) => {
@@ -252,6 +273,10 @@ const UsersPage = () => {
                       email: formData.get("email"),
                       password: formData.get("password"),
                       role: formData.get("role"),
+                      firstName: formData.get("firstName"),
+                      lastName: formData.get("lastName"),
+                      imageURL: newUserImageURL || "",
+                      emailVerified: true,
                       // isSubscriped: formData.get('subscription') === 'true'
                     });
                     setModalType(null);
@@ -263,6 +288,50 @@ const UsersPage = () => {
                   }
                 }}
               >
+                {/* Avatar preview */}
+                <div className="mb-4 flex items-center gap-3">
+                  {newUserImageURL ? (
+                    <img
+                      src={newUserImageURL}
+                      alt={newUsername || "New User"}
+                      className="h-12 w-12 rounded-full border object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full border bg-gray-200 text-base font-bold text-gray-700">
+                      {(newUsername || "?")
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()}
+                    </div>
+                  )}
+                  <div className="text-sm text-gray-600">Avatar preview</div>
+                </div>
+                {/* Upload image via UploadThing */}
+                <div className="mb-3">
+                  <label className="mb-1 block text-sm font-medium">
+                    Upload Image
+                  </label>
+                  <UTUploadButton
+                    appearance={{
+                      button:
+                        "bg-primary text-creamey rounded-full px-6 py-2 font-bold hover:bg-primary/80 transition hover:cursor-pointer",
+                    }}
+                    endpoint="mediaUploader"
+                    onClientUploadComplete={(res) => {
+                      const url = res?.[0]?.url as string | undefined;
+                      if (url) setNewUserImageURL(url);
+                    }}
+                    onUploadError={(err) => {
+                      console.error("Upload error:", err);
+                      alert(`Upload failed: ${err.message}`);
+                    }}
+                    onBeforeUploadBegin={beforeUploadCompress}
+                  />
+                </div>
                 <div className="mb-4">
                   <label className="mb-1 block text-sm font-medium">
                     Username
@@ -272,7 +341,30 @@ const UsersPage = () => {
                     name="username"
                     required
                     className="w-full rounded border p-2"
+                    onChange={(e) => setNewUsername(e.target.value)}
                   />
+                </div>
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      name="firstName"
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      name="lastName"
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
                 </div>
                 <div className="mb-4">
                   <label className="mb-1 block text-sm font-medium">
@@ -305,6 +397,19 @@ const UsersPage = () => {
                   </select>
                 </div>
                 {/* <div className="mb-4">
+                  <label className="mb-1 block text-sm font-medium">
+                    Image URL
+                  </label>
+                  <input
+                    type="url"
+                    name="imageURL"
+                    placeholder="https://..."
+                    className="w-full rounded border p-2"
+                    value={newUserImageURL || ""}
+                    onChange={(e) => setNewUserImageURL(e.target.value)}
+                  />
+                </div> */}
+                {/* <div className="mb-4">
                   <label className="block text-sm font-medium mb-1">Subscription</label>
                   <select name="subscription" className="w-full p-2 border rounded">
                     <option value="false">No</option>
@@ -334,7 +439,7 @@ const UsersPage = () => {
         {/* Edit User Modal */}
         {modalType === "edit" && selectedUser && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="w-96 rounded-lg bg-white p-6">
+            <div className="max-h-[90vh] w-96 overflow-y-scroll rounded-lg bg-white p-6">
               <h2 className="mb-4 text-xl font-bold">Edit User</h2>
               <form
                 onSubmit={async (e) => {
@@ -347,6 +452,9 @@ const UsersPage = () => {
                       role: formData.get("role"),
                       // isSubscribed: formData.get('subscription') === 'true',
                       emailVerified: formData.get("emailVerified") === "true",
+                      firstName: formData.get("firstName"),
+                      lastName: formData.get("lastName"),
+                      imageURL: editImageURL || "",
                     });
                     setModalType(null);
                     // Refresh users list
@@ -357,6 +465,53 @@ const UsersPage = () => {
                   }
                 }}
               >
+                {/* Avatar preview */}
+                <div className="mb-4 flex items-center gap-3">
+                  {editImageURL || selectedUser.imageURL ? (
+                    <img
+                      src={editImageURL || selectedUser.imageURL || ""}
+                      alt={selectedUser.username}
+                      className="h-12 w-12 rounded-full border object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full border bg-gray-200 text-base font-bold text-gray-700">
+                      {selectedUser.username
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()}
+                    </div>
+                  )}
+                  <div className="text-sm text-gray-600">Avatar preview</div>
+                </div>
+                {/* Upload image via UploadThing (placed under avatar) */}
+                <div className="mb-3">
+                  <label className="mb-1 block text-sm font-medium">
+                    Upload Image
+                  </label>
+                  <UTUploadButton
+                    appearance={{
+                      button:
+                        "bg-primary text-creamey rounded-full px-6 py-2 font-bold hover:bg-primary/80 transition hover:cursor-pointer",
+                    }}
+                    endpoint="mediaUploader"
+                    onClientUploadComplete={(res) => {
+                      const url = res?.[0]?.url as string | undefined;
+                      if (url) setEditImageURL(url);
+                    }}
+                    onUploadError={(err) => {
+                      console.error("Upload error:", err);
+                      alert(`Upload failed: ${err.message}`);
+                    }}
+                    onBeforeUploadBegin={beforeUploadCompress}
+                  />
+                  {/* <p className="mt-1 text-xs text-gray-500">
+                    Max file size: 4MB.
+                  </p> */}
+                </div>
                 <div className="mb-4">
                   <label className="mb-1 block text-sm font-medium">
                     Username
@@ -368,6 +523,30 @@ const UsersPage = () => {
                     required
                     className="w-full rounded border p-2"
                   />
+                </div>
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      name="firstName"
+                      defaultValue={selectedUser.firstName || ""}
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      name="lastName"
+                      defaultValue={selectedUser.lastName || ""}
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
                 </div>
                 <div className="mb-4">
                   <label className="mb-1 block text-sm font-medium">
@@ -427,7 +606,7 @@ const UsersPage = () => {
                   </button>
                   <button
                     type="submit"
-                    className="rounded bg-accent px-4 py-2 text-white"
+                    className="rounded bg-primary px-4 py-2 text-white"
                   >
                     Update User
                   </button>

@@ -1,18 +1,40 @@
-import { NextResponse } from 'next/server';
-import { removeToken } from '@/utils/auth';
-import { Router } from 'next/router';
+import { NextResponse } from "next/server";
 
-export async function GET(request:Request) {
+function buildLogoutResponse(request: Request) {
+  const response = NextResponse.redirect(new URL("/login", request.url));
+  // Explicitly clear the cookie on the response with matching options
+  response.cookies.set({
+    name: "token",
+    value: "",
+    maxAge: 0,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+  return response;
+}
+
+export async function GET(request: Request) {
   try {
-    // Remove token from cookies
-    removeToken();
-    return NextResponse.redirect(new URL('/login', request.url));
-
+    return buildLogoutResponse(request);
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error("Logout error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
-} 
+}
+
+export async function POST(request: Request) {
+  try {
+    return buildLogoutResponse(request);
+  } catch (error) {
+    console.error("Logout error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}

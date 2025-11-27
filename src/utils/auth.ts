@@ -12,8 +12,8 @@ export function setToken(token: string) {
   });
 }
 
-export function removeToken() {
-  cookies().delete("token");
+export async function removeToken() {
+  await cookies().delete("token");
 }
 
 export function getToken() {

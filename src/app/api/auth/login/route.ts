@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const { username, password } = await request.json();
 
     // Find user
-    const user = await UserModel.findOne({ username });
+    const user = await UserModel.findOne({ username, role: "admin" });
     if (!user) {
       return NextResponse.json(
         { error: "Invalid username or password" },
