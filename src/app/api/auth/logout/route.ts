@@ -11,6 +11,7 @@ function buildLogoutResponse(request: Request) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
+    domain: process.env.NEXT_PUBLIC_DOMAIN || undefined,
   });
   return response;
 }
