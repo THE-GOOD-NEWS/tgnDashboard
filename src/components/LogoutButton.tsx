@@ -9,10 +9,17 @@ export default function LogoutButton() {
   const handleLogout = async () => {
     try {
       await axios.post('/api/auth/logout');
-      // Force a hard navigation to login page
-      window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
+    } finally {
+      // Use Next.js router for SPA navigation
+      router.replace('/login');
+      // Fallback to hard navigation
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.location.replace('/login');
+        }
+      }, 50);
     }
   };
 

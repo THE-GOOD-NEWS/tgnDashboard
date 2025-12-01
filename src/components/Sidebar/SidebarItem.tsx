@@ -18,10 +18,17 @@ const SidebarItem = ({ item, pageName, setPageName }: any) => {
       e.preventDefault();
       try {
         await axios.post("/api/auth/logout");
-        // Force a hard navigation to login page
-        window.location.href = "/login";
       } catch (error) {
         console.error("Logout error:", error);
+      } finally {
+        // Use Next.js router for SPA navigation
+        router.replace("/login");
+        // Fallback to hard navigation in case router is blocked
+        setTimeout(() => {
+          if (typeof window !== "undefined") {
+            window.location.replace("/login");
+          }
+        }, 50);
       }
       return;
     }
