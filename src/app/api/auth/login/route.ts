@@ -36,6 +36,13 @@ export async function POST(request: Request) {
       { status: 200 },
     );
 
+    // Determine cookie domain only when it matches the current host
+    const { hostname } = new URL(request.url);
+    const envDomain = process.env.NEXT_PUBLIC_DOMAIN;
+    const cookieDomain = envDomain && (hostname === envDomain || hostname.endsWith(`.${envDomain}`))
+      ? envDomain
+      : undefined;
+
     // Set token in cookie with proper configuration
     response.cookies.set({
       name: "token",
@@ -45,9 +52,7 @@ export async function POST(request: Request) {
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 30, // 30 days
-      domain: process.env.NEXT_PUBLIC_DOMAIN || undefined,
-
-      // Omit domain to default to current host; avoids mismatch in dev
+      domain: cookieDomain,
     });
 
     return response;
