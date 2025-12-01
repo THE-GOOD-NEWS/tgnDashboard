@@ -237,7 +237,8 @@ const menuGroups = [
       {
         icon: <FiLogOut />,
         label: "Logout",
-        route: "/api/auth/logout",
+        // Use a non-navigating route to avoid accidental API calls
+        route: "#",
       },
     ],
   },
