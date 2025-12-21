@@ -129,6 +129,11 @@ const menuGroups = [
         label: "Article Categories",
         route: "/pages/article-categories",
       },
+      {
+        icon: <TfiNotepad />,
+        label: "Forms",
+        route: "/pages/forms",
+      },
       // {
       //   icon: <RiCoupon3Line />,
       //   label: "Discounts",
