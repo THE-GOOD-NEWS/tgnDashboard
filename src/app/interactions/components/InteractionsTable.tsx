@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { format } from "date-fns";
 import Swal from "sweetalert2";
+import { AiFillLike, AiOutlineLike } from "react-icons/ai";
+
 import InteractionModal from "./InteractionModal";
+import CreateInteractionModal from "./CreateInteractionModal";
 
 interface Interaction {
   _id: string;
@@ -52,6 +55,7 @@ const InteractionsTable = () => {
   const [selectedInteraction, setSelectedInteraction] =
     useState<Interaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
 
   // Fetch interactions with current filters, pagination, and sorting
   const fetchInteractions = async () => {
@@ -203,6 +207,11 @@ const InteractionsTable = () => {
     setIsModalOpen(false);
   };
 
+  // Handle interaction create
+  const handleInteractionCreate = (created: any) => {
+    setInteractions((prev) => [created, ...prev]);
+  };
+
   return (
     <div className="max-w-full overflow-x-auto">
       {/* Filters */}
@@ -222,7 +231,7 @@ const InteractionsTable = () => {
             className="rounded border border-stroke px-2 py-1 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
           >
             <option value="">All</option>
-            <option value="video">Video</option>
+            <option value="article">Article</option>
             <option value="comment">Comment</option>
             <option value="reply">Reply</option>
           </select>
@@ -267,7 +276,13 @@ const InteractionsTable = () => {
           </select>
         </div> */}
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          {/* <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="rounded bg-primary px-4 py-2 text-white hover:bg-opacity-90"
+          >
+            Add Interaction
+          </button> */}
           <label htmlFor="limit" className="mr-2 text-black dark:text-white">
             Show:
           </label>
@@ -478,15 +493,19 @@ const InteractionsTable = () => {
 
                 <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                   <p className="text-black dark:text-white">
-                    {interaction.content
-                      ? interaction.content.length > 50
-                        ? `${interaction.content.substring(0, 50)}...`
-                        : interaction.content
-                      : interaction.actionType === "like"
-                        ? "💗"
-                        : interaction.actionType === "unlike"
-                          ? "🥹"
-                          : "💗"}
+                    {interaction.content ? (
+                      interaction.content.length > 50 ? (
+                        `${interaction.content.substring(0, 50)}...`
+                      ) : (
+                        interaction.content
+                      )
+                    ) : interaction.actionType === "like" ? (
+                      <AiFillLike />
+                    ) : interaction.actionType === "unlike" ? (
+                      <AiOutlineLike />
+                    ) : (
+                      <AiFillLike />
+                    )}
                   </p>
                 </td>
                 {/* <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
@@ -616,12 +635,17 @@ const InteractionsTable = () => {
         </div>
       )}
 
-      {/* Edit Modal */}
       {/* {isModalOpen && selectedInteraction && (
         <InteractionModal
           interaction={selectedInteraction}
           onClose={handleModalClose}
           onUpdate={handleInteractionUpdate}
+        />
+      )}
+      {isCreateModalOpen && (
+        <CreateInteractionModal
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreate={handleInteractionCreate}
         />
       )} */}
     </div>

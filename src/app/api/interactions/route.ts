@@ -145,6 +145,7 @@ export async function POST(request: Request) {
       targetType: body.targetType,
       actionType: body.actionType,
       content: body.content,
+      parentType: body.parentType,
       parentId: body.parentId
         ? new mongoose.Types.ObjectId(body.parentId)
         : undefined,

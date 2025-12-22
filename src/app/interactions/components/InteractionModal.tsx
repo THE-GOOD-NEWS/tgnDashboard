@@ -7,8 +7,11 @@ interface Interaction {
   _id: string;
   userId: {
     _id: string;
-    name: string;
-    email: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    imageURL?: string;
   };
   targetId: string;
   targetType: "video" | "comment" | "reply";
@@ -24,7 +27,11 @@ interface InteractionModalProps {
   onUpdate: (updatedInteraction: Interaction) => void;
 }
 
-const InteractionModal = ({ interaction, onClose, onUpdate }: InteractionModalProps) => {
+const InteractionModal = ({
+  interaction,
+  onClose,
+  onUpdate,
+}: InteractionModalProps) => {
   const [formData, setFormData] = useState({
     targetType: interaction.targetType,
     actionType: interaction.actionType,
@@ -36,10 +43,12 @@ const InteractionModal = ({ interaction, onClose, onUpdate }: InteractionModalPr
 
   // Handle input changes
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
   ) => {
     const { name, value, type } = e.target;
-    
+
     if (type === "checkbox") {
       const target = e.target as HTMLInputElement;
       setFormData((prev) => ({
@@ -61,12 +70,14 @@ const InteractionModal = ({ interaction, onClose, onUpdate }: InteractionModalPr
     setError("");
 
     try {
-      const response = await axios.patch(`/api/interactions/${interaction._id}`, formData);
-      
-      // Update the interaction in the parent component
+      const payload = {
+        content: formData.content,
+        read: formData.read,
+      };
+      await axios.patch(`/api/interactions/${interaction._id}`, payload);
       onUpdate({
         ...interaction,
-        ...formData,
+        ...payload,
       });
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to update interaction");
@@ -117,9 +128,13 @@ const InteractionModal = ({ interaction, onClose, onUpdate }: InteractionModalPr
             </label>
             <input
               type="text"
-              value={interaction.userId?.name || "Unknown"}
+              value={
+                interaction.userId?.name ||
+                `${interaction.userId?.firstName || ""} ${interaction.userId?.lastName || ""}`.trim() ||
+                "Unknown"
+              }
               disabled
-              className="w-full rounded-md border border-stroke bg-gray py-3 px-4 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+              className="w-full rounded-md border border-stroke bg-gray px-4 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
             />
           </div>
 
@@ -131,7 +146,8 @@ const InteractionModal = ({ interaction, onClose, onUpdate }: InteractionModalPr
               name="targetType"
               value={formData.targetType}
               onChange={handleChange}
-              className="w-full rounded-md border border-stroke bg-white py-3 px-4 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+              disabled
+              className="w-full rounded-md border border-stroke bg-white px-4 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
             >
               <option value="video">Video</option>
               <option value="comment">Comment</option>
@@ -147,7 +163,8 @@ const InteractionModal = ({ interaction, onClose, onUpdate }: InteractionModalPr
               name="actionType"
               value={formData.actionType}
               onChange={handleChange}
-              className="w-full rounded-md border border-stroke bg-white py-3 px-4 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+              disabled
+              className="w-full rounded-md border border-stroke bg-white px-4 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
             >
               <option value="like">Like</option>
               <option value="unlike">Unlike</option>
@@ -165,7 +182,7 @@ const InteractionModal = ({ interaction, onClose, onUpdate }: InteractionModalPr
               value={formData.content}
               onChange={handleChange}
               rows={4}
-              className="w-full rounded-md border border-stroke bg-white py-3 px-4 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+              className="w-full rounded-md border border-stroke bg-white px-4 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
               placeholder="Interaction content"
             ></textarea>
           </div>
@@ -187,14 +204,14 @@ const InteractionModal = ({ interaction, onClose, onUpdate }: InteractionModalPr
             <button
               type="button"
               onClick={onClose}
-              className="flex justify-center rounded border border-stroke py-2 px-6 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
+              className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex justify-center rounded bg-primary py-2 px-6 font-medium text-white hover:bg-opacity-90"
+              className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-white hover:bg-opacity-90"
               disabled={loading}
             >
               {loading ? "Saving..." : "Save Changes"}
