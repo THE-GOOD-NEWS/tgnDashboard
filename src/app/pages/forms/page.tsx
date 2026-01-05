@@ -67,11 +67,127 @@ export default function FormsPage() {
   const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerList, setViewerList] = useState<string[]>([]);
   const [viewerIndex, setViewerIndex] = useState<number>(0);
+  const [exporting, setExporting] = useState(false);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(total / limit));
   }, [total, limit]);
 
+  type ColumnDef = {
+    label: string;
+    key?: keyof FormSubmission;
+    compute?: (s: FormSubmission) => string;
+  };
+  const columnsForType = (
+    type: FormType,
+    items: FormSubmission[],
+  ): ColumnDef[] => {
+    const common: ColumnDef[] = [
+      { key: "formType", label: "Form Type" },
+      { key: "status", label: "Status" },
+      { key: "name", label: "Name" },
+      { key: "email", label: "Email" },
+      { key: "phoneNumber", label: "Phone" },
+      { key: "createdAt", label: "Created At" },
+      { key: "updatedAt", label: "Updated At" },
+    ];
+    if (type === "join_team") {
+      return [
+        ...common,
+        { key: "resumeAs", label: "Resume As" },
+        { key: "interestedFields", label: "Interested Fields" },
+        { key: "experience", label: "Experience" },
+        { key: "workStyle", label: "Work Style" },
+        { key: "cvUrl", label: "CV Link" },
+        { key: "notes", label: "Notes" },
+      ];
+    }
+    if (type === "contact") {
+      return [
+        ...common,
+        { key: "subject", label: "Subject" },
+        { key: "message", label: "Message" },
+      ];
+    }
+    if (type === "partner") {
+      return [
+        ...common,
+        { key: "businessName", label: "Business Name" },
+        { key: "industry", label: "Industry" },
+        { key: "collaborationIdea", label: "Collaboration Idea" },
+        { key: "campaignDetails", label: "Campaign Details" },
+        { key: "socialMediaAccounts", label: "Social Media Accounts" },
+        { key: "contactName", label: "Contact Name" },
+        { key: "contactNumber", label: "Contact Number" },
+        { key: "contactEmail", label: "Contact Email" },
+        { key: "contactMethod", label: "Preferred Contact Methods" },
+      ];
+    }
+    const maxMedia =
+      items.reduce((m, s) => Math.max(m, (s.mediaUrls || []).length), 0) || 0;
+    const mediaCols: ColumnDef[] = Array.from({ length: maxMedia }).map(
+      (_, i) => ({
+        label: `Media Link ${i + 1}`,
+        compute: (s) =>
+          Array.isArray(s.mediaUrls) && s.mediaUrls[i] ? s.mediaUrls[i] : "",
+      }),
+    );
+    return [...common, { key: "story", label: "Story" }, ...mediaCols];
+  };
+  const formatCell = (val: any) => {
+    if (val === null || val === undefined) return "";
+    if (Array.isArray(val)) return val.join("; ");
+    if (typeof val === "string") {
+      const needsQuotes =
+        val.includes(",") || val.includes("\n") || val.includes('"');
+      const escaped = val.replace(/"/g, '""');
+      return needsQuotes ? `"${escaped}"` : escaped;
+    }
+    if (typeof val === "number" || typeof val === "boolean") return String(val);
+    if (val instanceof Date) return val.toISOString();
+    return String(val);
+  };
+  const handleExport = async () => {
+    if (!filterType) return;
+    try {
+      setExporting(true);
+      const filtered = submissions.filter((s) => s.formType === filterType);
+      const cols = columnsForType(filterType as FormType, filtered);
+      const rows = filtered.map((s) =>
+        cols.map((c) => {
+          let v: any;
+          if (c.compute) {
+            v = c.compute(s);
+          } else if (c.key) {
+            v =
+              c.key === "createdAt" || c.key === "updatedAt"
+                ? new Date((s as any)[c.key]).toISOString()
+                : (s as any)[c.key];
+          } else {
+            v = "";
+          }
+          return formatCell(v);
+        }),
+      );
+      const header = cols.map((c) => c.label).join(",");
+      const body = rows.map((r) => r.join(",")).join("\r\n");
+      const csv = "\ufeff" + header + "\r\n" + body;
+      const blob = new Blob([csv], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      a.href = url;
+      a.download = `forms_${filterType}_${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
   const fetchSubmissions = async () => {
     setLoading(true);
     try {
@@ -816,6 +932,14 @@ export default function FormsPage() {
                 <option value="partner">Partner</option>
                 <option value="share_news">Share News</option>
               </select>
+              <button
+                onClick={handleExport}
+                disabled={!filterType || exporting}
+                className="mt-2 w-full rounded bg-green-600 px-3 py-2 text-sm text-white disabled:opacity-50"
+                title={!filterType ? "Select a form type to export" : undefined}
+              >
+                Export to Excel
+              </button>
             </div>
             <div>
               <select
