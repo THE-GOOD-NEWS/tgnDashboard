@@ -6,7 +6,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { FaPlay, FaDownload, FaTrash } from "react-icons/fa";
 
-type FormType = "join_team" | "contact" | "partner" | "share_news";
+type FormType =
+  | "join_team"
+  | "contact"
+  | "partner"
+  | "share_news"
+  | "join_good_project";
 type StatusType = "pending" | "reviewed" | "archived";
 
 type FormSubmission = {
@@ -35,6 +40,17 @@ type FormSubmission = {
   contactMethod?: string[];
   story?: string;
   mediaUrls?: string[];
+  studentName?: string;
+  studentEmail?: string;
+  projectName?: string;
+  faculty?: string;
+  university?: string;
+  academicYear?: string;
+  aboutProject?: string;
+  projectCategory?: string;
+  projectLogoUrl?: string;
+  teamPhotoUrl?: string;
+  projectPageLink?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -91,6 +107,7 @@ export default function FormsPage() {
       { key: "createdAt", label: "Created At" },
       { key: "updatedAt", label: "Updated At" },
     ];
+
     if (type === "join_team") {
       return [
         ...common,
@@ -121,6 +138,22 @@ export default function FormsPage() {
         { key: "contactNumber", label: "Contact Number" },
         { key: "contactEmail", label: "Contact Email" },
         { key: "contactMethod", label: "Preferred Contact Methods" },
+      ];
+    }
+    if (type === "join_good_project") {
+      return [
+        ...common,
+        { key: "studentName", label: "Student Name" },
+        { key: "studentEmail", label: "Student Email" },
+        { key: "projectName", label: "Project Name" },
+        { key: "faculty", label: "Faculty" },
+        { key: "university", label: "University" },
+        { key: "academicYear", label: "Academic Year" },
+        { key: "aboutProject", label: "About Project" },
+        { key: "projectCategory", label: "Project Category" },
+        { key: "projectLogoUrl", label: "Project Logo Link" },
+        { key: "teamPhotoUrl", label: "Team Photo Link" },
+        { key: "projectPageLink", label: "Project Page Link" },
       ];
     }
     const maxMedia =
@@ -890,6 +923,165 @@ export default function FormsPage() {
         </>
       );
     }
+    if (current.formType === "join_good_project") {
+      return (
+        <>
+          {modalType === "view" ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Student Name
+                  </label>
+                  <input
+                    value={current.studentName || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Student Email
+                  </label>
+                  <input
+                    value={current.studentEmail || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Project Name
+                  </label>
+                  <input
+                    value={current.projectName || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Faculty
+                  </label>
+                  <input
+                    value={current.faculty || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    University
+                  </label>
+                  <input
+                    value={current.university || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Academic Year
+                  </label>
+                  <input
+                    value={current.academicYear || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+              </div>
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium">
+                  About Project
+                </label>
+                <textarea
+                  value={current.aboutProject || ""}
+                  readOnly
+                  className="w-full rounded border p-2"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium">
+                  Project Category
+                </label>
+                <input
+                  value={current.projectCategory || ""}
+                  readOnly
+                  className="w-full rounded border p-2"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium">
+                  Project Logo Link
+                </label>
+                {current.projectLogoUrl ? (
+                  <a
+                    href={current.projectLogoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 underline"
+                  >
+                    {current.projectLogoUrl}
+                  </a>
+                ) : (
+                  <p className="text-sm text-gray-500">No logo</p>
+                )}
+              </div>
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium">
+                  Team Photo Link
+                </label>
+                {current.teamPhotoUrl ? (
+                  <a
+                    href={current.teamPhotoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 underline"
+                  >
+                    {current.teamPhotoUrl}
+                  </a>
+                ) : (
+                  <p className="text-sm text-gray-500">No photo</p>
+                )}
+              </div>
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium">
+                  Project Page Link
+                </label>
+                {current.projectPageLink ? (
+                  <a
+                    href={current.projectPageLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 underline"
+                  >
+                    {current.projectPageLink}
+                  </a>
+                ) : (
+                  <p className="text-sm text-gray-500">No page link</p>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {renderField("studentName", "Student Name")}
+                {renderField("studentEmail", "Student Email")}
+                {renderField("projectName", "Project Name")}
+                {renderField("faculty", "Faculty")}
+                {renderField("university", "University")}
+                {renderField("academicYear", "Academic Year")}
+              </div>
+              {renderField("aboutProject", "About Project", "textarea")}
+              {renderField("projectCategory", "Project Category")}
+              {renderField("projectLogoUrl", "Project Logo Link")}
+              {renderField("teamPhotoUrl", "Team Photo Link")}
+              {renderField("projectPageLink", "Project Page Link")}
+            </>
+          )}
+        </>
+      );
+    }
     return null;
   };
 
@@ -931,6 +1123,7 @@ export default function FormsPage() {
                 <option value="contact">Contact</option>
                 <option value="partner">Partner</option>
                 <option value="share_news">Share News</option>
+                <option value="join_good_project">Join Good Project</option>
               </select>
               <button
                 onClick={handleExport}
@@ -1193,6 +1386,9 @@ export default function FormsPage() {
                       <option value="contact">Contact</option>
                       <option value="partner">Partner</option>
                       <option value="share_news">Share News</option>
+                      <option value="join_good_project">
+                        Join Good Project
+                      </option>
                     </select>
                   </div>
                   <div>
