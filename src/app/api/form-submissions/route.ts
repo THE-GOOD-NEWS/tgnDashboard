@@ -45,12 +45,12 @@ export async function GET(req: Request) {
         currentPage: page,
         totalPages: all ? 1 : Math.ceil(total / limit),
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: any) {
     return NextResponse.json(
       { error: "Failed to fetch form submissions", details: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     if (!body.formType || !allowedFormTypes.includes(body.formType)) {
       return NextResponse.json(
         { error: "Invalid or missing formType" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const created = await FormSubmissionModel.create(body);
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     return NextResponse.json(
       { error: "Failed to create submission", details: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

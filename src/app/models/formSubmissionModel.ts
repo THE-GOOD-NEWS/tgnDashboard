@@ -6,7 +6,8 @@ export interface IFormSubmission extends Document {
     | "contact"
     | "partner"
     | "share_news"
-    | "join_good_project";
+    | "join_good_project"
+    | "testimonial";
   status: "pending" | "reviewed" | "archived";
 
   // Common Fields
@@ -54,6 +55,20 @@ export interface IFormSubmission extends Document {
   teamPhotoUrl?: string;
   projectPageLink?: string;
 
+  // Testimonial Fields
+  companyName?: string;
+  role?: string;
+  campaignPurpose?: string;
+  professionalismRating?: number;
+  clarityRating?: number;
+  adaptabilityRating?: number;
+  responsivenessRating?: number;
+  overallRating?: number;
+  continueWorkingRating?: number;
+  recommendRating?: number;
+  testimonialComment?: string;
+  agreeToShare?: boolean;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -69,6 +84,7 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
         "partner",
         "share_news",
         "join_good_project",
+        "testimonial",
       ],
       index: true,
     },
@@ -122,6 +138,20 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
     projectLogoUrl: { type: String },
     teamPhotoUrl: { type: String },
     projectPageLink: { type: String },
+
+    // Testimonial
+    companyName: { type: String },
+    role: { type: String },
+    campaignPurpose: { type: String },
+    professionalismRating: { type: Number },
+    clarityRating: { type: Number },
+    adaptabilityRating: { type: Number },
+    responsivenessRating: { type: Number },
+    overallRating: { type: Number },
+    continueWorkingRating: { type: Number },
+    recommendRating: { type: Number },
+    testimonialComment: { type: String },
+    agreeToShare: { type: Boolean },
   },
   {
     timestamps: true,

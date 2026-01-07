@@ -4,14 +4,16 @@ import { headerFont } from "@/app/lib/fonts";
 import axios from "axios";
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { FaPlay, FaDownload, FaTrash } from "react-icons/fa";
+import { FaPlay, FaDownload, FaTrash, FaStar } from "react-icons/fa";
 
 type FormType =
   | "join_team"
   | "contact"
   | "partner"
   | "share_news"
-  | "join_good_project";
+  | "join_good_project"
+  | "testimonial";
+
 type StatusType = "pending" | "reviewed" | "archived";
 
 type FormSubmission = {
@@ -51,6 +53,18 @@ type FormSubmission = {
   projectLogoUrl?: string;
   teamPhotoUrl?: string;
   projectPageLink?: string;
+  companyName?: string;
+  role?: string;
+  campaignPurpose?: string;
+  professionalismRating?: number;
+  clarityRating?: number;
+  adaptabilityRating?: number;
+  responsivenessRating?: number;
+  overallRating?: number;
+  continueWorkingRating?: number;
+  recommendRating?: number;
+  testimonialComment?: string;
+  agreeToShare?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -156,6 +170,23 @@ export default function FormsPage() {
         { key: "projectPageLink", label: "Project Page Link" },
       ];
     }
+    if (type === "testimonial") {
+      return [
+        ...common,
+        { key: "companyName", label: "Company Name" },
+        { key: "role", label: "Role" },
+        { key: "campaignPurpose", label: "Campaign Purpose" },
+        { key: "professionalismRating", label: "Professionalism Rating" },
+        { key: "clarityRating", label: "Clarity Rating" },
+        { key: "adaptabilityRating", label: "Adaptability Rating" },
+        { key: "responsivenessRating", label: "Responsiveness Rating" },
+        { key: "overallRating", label: "Overall Rating" },
+        { key: "continueWorkingRating", label: "Continue Working Rating" },
+        { key: "recommendRating", label: "Recommend Rating" },
+        { key: "testimonialComment", label: "Testimonial Comment" },
+        { key: "agreeToShare", label: "Agree To Share" },
+      ];
+    }
     const maxMedia =
       items.reduce((m, s) => Math.max(m, (s.mediaUrls || []).length), 0) || 0;
     const mediaCols: ColumnDef[] = Array.from({ length: maxMedia }).map(
@@ -179,6 +210,48 @@ export default function FormsPage() {
     if (typeof val === "number" || typeof val === "boolean") return String(val);
     if (val instanceof Date) return val.toISOString();
     return String(val);
+  };
+  const StarRating = ({
+    value = 0,
+    onChange,
+    readOnly = false,
+  }: {
+    value?: number;
+    onChange?: (n: number) => void;
+    readOnly?: boolean;
+  }) => {
+    const v = Math.max(0, Math.min(5, value || 0));
+    const stars = [1, 2, 3, 4, 5];
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          {stars.map((i) =>
+            readOnly ? (
+              <span
+                key={i}
+                className={i <= v ? "text-yellow-400" : "text-gray-300"}
+              >
+                <FaStar />
+              </span>
+            ) : (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onChange?.(i)}
+                className="text-base"
+                aria-label={`Rate ${i} star${i > 1 ? "s" : ""}`}
+                title={`${i} / 5`}
+              >
+                <FaStar
+                  className={i <= v ? "text-yellow-400" : "text-gray-300"}
+                />
+              </button>
+            ),
+          )}
+        </div>
+        <span className="text-xs text-gray-500">{v}/5</span>
+      </div>
+    );
   };
   const handleExport = async () => {
     if (!filterType) return;
@@ -1082,6 +1155,339 @@ export default function FormsPage() {
         </>
       );
     }
+    if (current.formType === "testimonial") {
+      return (
+        <>
+          {modalType === "view" ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Company Name
+                  </label>
+                  <input
+                    value={current.companyName || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Role</label>
+                  <input
+                    value={current.role || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Campaign Purpose
+                  </label>
+                  <input
+                    value={current.campaignPurpose || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Professionalism Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.professionalismRating === "number"
+                        ? current.professionalismRating
+                        : 0
+                    }
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Clarity Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.clarityRating === "number"
+                        ? current.clarityRating
+                        : 0
+                    }
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Adaptability Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.adaptabilityRating === "number"
+                        ? current.adaptabilityRating
+                        : 0
+                    }
+                    readOnly
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Responsiveness Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.responsivenessRating === "number"
+                        ? current.responsivenessRating
+                        : 0
+                    }
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Overall Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.overallRating === "number"
+                        ? current.overallRating
+                        : 0
+                    }
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Continue Working Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.continueWorkingRating === "number"
+                        ? current.continueWorkingRating
+                        : 0
+                    }
+                    readOnly
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Recommend Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.recommendRating === "number"
+                        ? current.recommendRating
+                        : 0
+                    }
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Agree To Share
+                  </label>
+                  <input
+                    value={
+                      typeof current.agreeToShare === "boolean"
+                        ? current.agreeToShare
+                          ? "Yes"
+                          : "No"
+                        : ""
+                    }
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+              </div>
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium">
+                  Testimonial Comment
+                </label>
+                <textarea
+                  value={current.testimonialComment || ""}
+                  readOnly
+                  className="w-full rounded border p-2"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {renderField("companyName", "Company Name")}
+                {renderField("role", "Role")}
+                {renderField("campaignPurpose", "Campaign Purpose")}
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Professionalism Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.professionalismRating === "number"
+                        ? current.professionalismRating
+                        : 0
+                    }
+                    onChange={(n) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        professionalismRating: n,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Clarity Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.clarityRating === "number"
+                        ? current.clarityRating
+                        : 0
+                    }
+                    onChange={(n) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        clarityRating: n,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Adaptability Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.adaptabilityRating === "number"
+                        ? current.adaptabilityRating
+                        : 0
+                    }
+                    onChange={(n) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        adaptabilityRating: n,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Responsiveness Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.responsivenessRating === "number"
+                        ? current.responsivenessRating
+                        : 0
+                    }
+                    onChange={(n) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        responsivenessRating: n,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Overall Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.overallRating === "number"
+                        ? current.overallRating
+                        : 0
+                    }
+                    onChange={(n) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        overallRating: n,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Continue Working Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.continueWorkingRating === "number"
+                        ? current.continueWorkingRating
+                        : 0
+                    }
+                    onChange={(n) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        continueWorkingRating: n,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Recommend Rating
+                  </label>
+                  <StarRating
+                    value={
+                      typeof current.recommendRating === "number"
+                        ? current.recommendRating
+                        : 0
+                    }
+                    onChange={(n) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        recommendRating: n,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Agree To Share
+                  </label>
+                  <select
+                    value={
+                      typeof current.agreeToShare === "boolean"
+                        ? current.agreeToShare
+                          ? "true"
+                          : "false"
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        agreeToShare: e.target.value === "true",
+                      }))
+                    }
+                    className="w-full rounded border p-2"
+                  >
+                    <option value="">Select</option>
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select>
+                </div>
+              </div>
+              {renderField(
+                "testimonialComment",
+                "Testimonial Comment",
+                "textarea",
+              )}
+            </>
+          )}
+        </>
+      );
+    }
     return null;
   };
 
@@ -1124,6 +1530,7 @@ export default function FormsPage() {
                 <option value="partner">Partner</option>
                 <option value="share_news">Share News</option>
                 <option value="join_good_project">Join Good Project</option>
+                <option value="testimonial">Testimonials</option>
               </select>
               <button
                 onClick={handleExport}
@@ -1389,6 +1796,7 @@ export default function FormsPage() {
                       <option value="join_good_project">
                         Join Good Project
                       </option>
+                      <option value="testimonial">Testimonials</option>
                     </select>
                   </div>
                   <div>
