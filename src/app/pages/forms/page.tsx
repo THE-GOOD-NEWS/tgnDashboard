@@ -257,9 +257,16 @@ export default function FormsPage() {
     if (!filterType) return;
     try {
       setExporting(true);
-      const filtered = submissions.filter((s) => s.formType === filterType);
-      const cols = columnsForType(filterType as FormType, filtered);
-      const rows = filtered.map((s) =>
+      // Fetch ALL records for the selected form type (no pagination)
+      const res = await axios.get("/api/form-submissions", {
+        params: {
+          formType: filterType,
+          limit: 999999, // Large number to get all records
+        },
+      });
+      const allRecords = res.data.data as FormSubmission[];
+      const cols = columnsForType(filterType as FormType, allRecords);
+      const rows = allRecords.map((s) =>
         cols.map((c) => {
           let v: any;
           if (c.compute) {
