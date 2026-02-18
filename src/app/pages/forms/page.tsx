@@ -126,7 +126,14 @@ export default function FormsPage() {
       return [
         ...common,
         { key: "resumeAs", label: "Resume As" },
-        { key: "interestedFields", label: "Interested Fields" },
+        {
+          label: "First Interest",
+          compute: (s) => s.interestedFields?.[0] || "",
+        },
+        {
+          label: "Second Interest",
+          compute: (s) => s.interestedFields?.[1] || "",
+        },
         { key: "experience", label: "Experience" },
         { key: "workStyle", label: "Work Style" },
         { key: "cvUrl", label: "CV Link" },
