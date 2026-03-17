@@ -11,7 +11,7 @@ import useLocalStorage from "@/hooks/useLocalStorage";
 import { BsHandbag } from "react-icons/bs";
 import { GiClothes, GiThreeFriends } from "react-icons/gi";
 import { BiMailSend } from "react-icons/bi";
-import { MdOutlineLoyalty, MdPlaylistPlay } from "react-icons/md";
+import { MdOutlineLoyalty, MdPlaylistPlay, MdOutlineWorkspaces } from "react-icons/md";
 import { IoStarSharp } from "react-icons/io5";
 
 import { CiVideoOn } from "react-icons/ci";
@@ -133,6 +133,11 @@ const menuGroups = [
         icon: <TfiNotepad />,
         label: "Forms",
         route: "/pages/forms",
+      },
+      {
+        icon: <MdOutlineWorkspaces />,
+        label: "Workshops",
+        route: "/pages/workshops",
       },
       // {
       //   icon: <RiCoupon3Line />,
