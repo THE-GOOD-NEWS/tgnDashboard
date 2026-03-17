@@ -1,4 +1,5 @@
 import WorkshopAttendanceRequestModel from "@/app/models/workshopAttendanceRequestModel";
+import WorkshopModel from "@/app/models/workshopModel";
 import { ConnectDB } from "@/config/db";
 import { NextResponse } from "next/server";
 
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
     const query: any = {};
     if (workshopId) query.workshopId = workshopId;
     if (status) query.status = status;
-
+    console.log("register" + WorkshopModel)
     const requests = await WorkshopAttendanceRequestModel.find(query)
       .populate("workshopId", "title")
       .sort({
