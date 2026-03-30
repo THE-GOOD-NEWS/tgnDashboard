@@ -19,6 +19,7 @@ import {
   FaMoneyBillWave,
   FaCheck,
   FaBan,
+  FaDownload,
 } from "react-icons/fa";
 import { MdOutlineWorkspaces } from "react-icons/md";
 import { HiOutlinePhoto } from "react-icons/hi2";
@@ -395,10 +396,18 @@ function ImageUploadAndSort({
 export default function WorkshopsPage() {
   const [topTab, setTopTab] = useState<PageTab>("workshops");
   const [workshops, setWorkshops] = useState<IWorkshop[]>([]);
+  const [allWorkshops, setAllWorkshops] = useState<IWorkshop[]>([]);
+  const [selectedWorkshop, setSelectedWorkshop] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+
+  // Analytics filter state
+  const [analyticsFilterType, setAnalyticsFilterType] = useState<"all" | "month" | "custom">("all");
+  const [analyticsMonth, setAnalyticsMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [analyticsStartDate, setAnalyticsStartDate] = useState<string>("");
+  const [analyticsEndDate, setAnalyticsEndDate] = useState<string>("");
   const limit = 10;
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
@@ -416,12 +425,31 @@ export default function WorkshopsPage() {
   const [currentReq, setCurrentReq] = useState<IWorkshopAttendanceRequest | null>(null);
 
   const analyticsData = useMemo(() => {
-    if (topTab !== "analytics") return { topRequested: [], topWaitlist: [], requestCounts: {}, waitlistCounts: {} };
+    if (topTab !== "analytics") return { topRequested: [], topWaitlist: [], requestCounts: {}, waitlistCounts: {}, filteredRequests: [] };
     
     const requestCounts: Record<string, number> = {};
     const waitlistCounts: Record<string, number> = {};
     
-    allRequests.forEach(req => {
+    const filteredRequests = allRequests.filter(req => {
+      if (analyticsFilterType === "all") return true;
+      const createdAt = new Date(req.createdAt).getTime();
+      
+      if (analyticsFilterType === "month") {
+        const [year, month] = analyticsMonth.split("-").map(Number);
+        const date = new Date(req.createdAt);
+        return date.getFullYear() === year && (date.getMonth() + 1) === month;
+      }
+      
+      if (analyticsFilterType === "custom") {
+        const start = analyticsStartDate ? new Date(analyticsStartDate).setHours(0,0,0,0) : 0;
+        const end = analyticsEndDate ? new Date(analyticsEndDate).setHours(23,59,59,999) : Infinity;
+        return createdAt >= start && createdAt <= end;
+      }
+      
+      return true;
+    });
+
+    filteredRequests.forEach(req => {
       const wId = typeof req.workshopId === 'object' ? req.workshopId._id : req.workshopId;
       requestCounts[wId] = (requestCounts[wId] || 0) + 1;
       if (req.type === 'waitlist') {
@@ -432,8 +460,8 @@ export default function WorkshopsPage() {
     const topRequested = [...workshops].sort((a,b) => (requestCounts[b._id] || 0) - (requestCounts[a._id] || 0)).slice(0, 5);
     const topWaitlist = [...workshops].sort((a,b) => (waitlistCounts[b._id] || 0) - (waitlistCounts[a._id] || 0)).slice(0, 5);
 
-    return { topRequested, topWaitlist, requestCounts, waitlistCounts };
-  }, [topTab, allRequests, workshops]);
+    return { topRequested, topWaitlist, requestCounts, waitlistCounts, filteredRequests };
+  }, [topTab, allRequests, workshops, analyticsFilterType, analyticsMonth, analyticsStartDate, analyticsEndDate]);
 
   // Session accordion
   const [expandedSession, setExpandedSession] = useState<number | null>(null);
@@ -453,16 +481,28 @@ export default function WorkshopsPage() {
     setLoading(true);
     try {
       const res = await axios.get("/api/workshops", {
-        params: { page, limit, search: search || undefined, all: topTab !== "workshops" },
+        params: {
+          page,
+          limit,
+          search: search || undefined,
+          all: topTab !== "workshops",
+          id: selectedWorkshop || undefined,
+        },
       });
       setWorkshops(res.data.data);
       if (topTab === "workshops") setTotal(res.data.total);
+      
+      // Also fetch all workshops for dropdowns if not already fetched or if needed
+      if (allWorkshops.length === 0 || topTab !== "workshops") {
+        const allRes = await axios.get("/api/workshops", { params: { all: true } });
+        setAllWorkshops(allRes.data.data);
+      }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [page, search, topTab]);
+  }, [page, search, topTab, allWorkshops.length, selectedWorkshop]);
 
   useEffect(() => {
     fetchWorkshops();
@@ -741,7 +781,7 @@ export default function WorkshopsPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-black dark:text-white">
-                Workshops Hub
+                The Good Space
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Manage Workshops, track requests, and analyze performance
@@ -794,7 +834,24 @@ export default function WorkshopsPage() {
                 }}
                 className="w-full max-w-sm rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white"
               />
+              <select
+                value={selectedWorkshop}
+                onChange={(e) => {
+                  setSelectedWorkshop(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full max-w-sm rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white"
+              >
+                <option value="">All Workshops</option>
+                {allWorkshops.map((w) => (
+                  <option key={w._id} value={w._id}>
+                    {w.title}
+                  </option>
+                ))}
+              </select>
             </div>
+            
+
             {/* Table block remains same below */}
 
         {/* ── Table ── */}
@@ -950,6 +1007,23 @@ export default function WorkshopsPage() {
               <div className="py-20 text-center text-gray-400">No requests found</div>
             ) : (
               <div className="overflow-x-auto">
+                <div className="p-4 bg-white dark:bg-boxdark border-b dark:border-strokedark">
+                  <select
+                    value={selectedWorkshop}
+                    onChange={(e) => {
+                      setSelectedWorkshop(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full max-w-sm rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white"
+                  >
+                    <option value="">Filter by Workshop</option>
+                    {allWorkshops.map((w) => (
+                      <option key={w._id} value={w._id}>
+                        {w.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-meta-4 text-left text-[10px] font-black uppercase text-gray-400 border-b dark:border-strokedark">
@@ -964,7 +1038,16 @@ export default function WorkshopsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stroke dark:divide-strokedark">
-                    {allRequests.map((req) => (
+                    {allRequests
+                      .filter((req) => {
+                        if (!selectedWorkshop) return true;
+                        const wId =
+                          typeof req.workshopId === "object"
+                            ? req.workshopId._id
+                            : req.workshopId;
+                        return wId === selectedWorkshop;
+                      })
+                      .map((req) => (
                       <tr key={req._id} className="hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors">
                         <td className="px-6 py-4">
                           {req.instapayImage ? (
@@ -1058,23 +1141,84 @@ export default function WorkshopsPage() {
         )}
 
         {topTab === "analytics" && (
-          <div className="space-y-6">
+          <div className="space-y-6 printable-area md:print:-pl-72.5 ">
+            {/* ── Filter & Export Controls ── */}
+            <div className="flex flex-col gap-4 rounded-2xl border border-stroke bg-white p-6 shadow-md dark:border-strokedark dark:bg-boxdark lg:flex-row lg:items-end lg:justify-between no-print">
+              {/* <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-widest text-gray-500">Time Range</label>
+                  <select
+                    value={analyticsFilterType}
+                    onChange={(e) => setAnalyticsFilterType(e.target.value as any)}
+                    className="w-40 rounded-xl border border-stroke bg-gray-50 px-4 py-2.5 text-sm font-bold text-black focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  >
+                    <option value="all">All Time</option>
+                    <option value="month">Specific Month</option>
+                    <option value="custom">Custom Range</option>
+                  </select>
+                </div>
+
+                {analyticsFilterType === "month" && (
+                  <div className="space-y-1.5 animate-fade-in">
+                    <label className="text-xs font-black uppercase tracking-widest text-gray-500">Pick Month</label>
+                    <input
+                      type="month"
+                      value={analyticsMonth}
+                      onChange={(e) => setAnalyticsMonth(e.target.value)}
+                      className="rounded-xl border border-stroke bg-gray-50 px-4 py-2.5 text-sm font-bold text-black focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                    />
+                  </div>
+                )}
+
+                {analyticsFilterType === "custom" && (
+                  <>
+                    <div className="space-y-1.5 animate-fade-in">
+                      <label className="text-xs font-black uppercase tracking-widest text-gray-500">Start Date</label>
+                      <input
+                        type="date"
+                        value={analyticsStartDate}
+                        onChange={(e) => setAnalyticsStartDate(e.target.value)}
+                        className="rounded-xl border border-stroke bg-gray-50 px-4 py-2.5 text-sm font-bold text-black focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-1.5 animate-fade-in">
+                      <label className="text-xs font-black uppercase tracking-widest text-gray-500">End Date</label>
+                      <input
+                        type="date"
+                        value={analyticsEndDate}
+                        onChange={(e) => setAnalyticsEndDate(e.target.value)}
+                        className="rounded-xl border border-stroke bg-gray-50 px-4 py-2.5 text-sm font-bold text-black focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                      />
+                    </div>
+                  </>
+                )}
+              </div> */}
+
+              <button
+                onClick={() => window.print()}
+                className="flex items-center justify-center gap-2 rounded-xl bg-secondary px-6 py-2.5 text-sm font-bold text-creamey shadow-md transition hover:bg-opacity-90 active:scale-95"
+              >
+                <FaDownload />
+                Export PDF Report
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard 
-                label="Total Workshops" 
+                label="Filtered Workshops" 
                 value={workshops.length} 
                 icon={<MdOutlineWorkspaces className="text-blue-500" size={24}/>}
                 color="blue"
               />
               <StatCard 
-                label="Total Visits" 
+                label="Filtered Visits" 
                 value={workshops.reduce((acc, curr) => acc + (curr.visits || 0), 0)} 
                 icon={<FaEye className="text-purple-500" size={24}/>}
                 color="purple"
               />
               <StatCard 
-                label="Active Requests" 
-                value={allRequests.length} 
+                label="Filtered Requests" 
+                value={analyticsData.filteredRequests.length} 
                 icon={<FaUsers className="text-amber-500" size={24}/>}
                 color="amber"
               />
@@ -1090,17 +1234,17 @@ export default function WorkshopsPage() {
               <div className="rounded-2xl border border-stroke bg-white p-6 shadow-md dark:border-strokedark dark:bg-boxdark">
                 <h3 className="font-bold text-lg mb-4">Requests Breakdown</h3>
                 <div className="space-y-4">
-                  <StatBar label="Approved" count={allRequests.filter(r => r.status === 'approved').length} total={allRequests.length} color="bg-green-500" />
-                  <StatBar label="Pending" count={allRequests.filter(r => r.status === 'pending').length} total={allRequests.length} color="bg-yellow-500" />
-                  <StatBar label="Rejected" count={allRequests.filter(r => r.status === 'rejected').length} total={allRequests.length} color="bg-red-500" />
+                  <StatBar label="Approved" count={analyticsData.filteredRequests.filter(r => r.status === 'approved').length} total={analyticsData.filteredRequests.length} color="bg-green-500" />
+                  <StatBar label="Pending" count={analyticsData.filteredRequests.filter(r => r.status === 'pending').length} total={analyticsData.filteredRequests.length} color="bg-yellow-500" />
+                  <StatBar label="Rejected" count={analyticsData.filteredRequests.filter(r => r.status === 'rejected').length} total={analyticsData.filteredRequests.length} color="bg-red-500" />
                 </div>
               </div>
 
               <div className="rounded-2xl border border-stroke bg-white p-6 shadow-md dark:border-strokedark dark:bg-boxdark">
                 <h3 className="font-bold text-lg mb-4">Availability Summary</h3>
                 <div className="space-y-4">
-                  <StatBar label="Direct Bookings" count={allRequests.filter(r => r.type === 'available').length} total={allRequests.length} color="bg-blue-500" />
-                  <StatBar label="Waitlist Entries" count={allRequests.filter(r => r.type === 'waitlist').length} total={allRequests.length} color="bg-orange-500" />
+                  <StatBar label="Direct Bookings" count={analyticsData.filteredRequests.filter(r => r.type === 'available').length} total={analyticsData.filteredRequests.length} color="bg-blue-500" />
+                  <StatBar label="Waitlist Entries" count={analyticsData.filteredRequests.filter(r => r.type === 'waitlist').length} total={analyticsData.filteredRequests.length} color="bg-orange-500" />
                 </div>
               </div>
             </div>
@@ -2238,6 +2382,38 @@ export default function WorkshopsPage() {
           </div>
         )}
       </div>
+      <style jsx global>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          .printable-area {
+            display: block !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+          body {
+            background: white !important;
+          }
+          aside, header {
+            display: none !important;
+          }
+          .md\\:pl-72\\.5 {
+            padding-left: 0 !important;
+          }
+          .grid {
+            display: block !important;
+          }
+          .grid > div {
+            margin-bottom: 2rem !important;
+            page-break-inside: avoid;
+          }
+          .rounded-2xl {
+            border: 1px solid #eee !important;
+            box-shadow: none !important;
+          }
+        }
+      `}</style>
     </DefaultLayout>
   );
 }

@@ -12,7 +12,8 @@ type FormType =
   | "partner"
   | "share_news"
   | "join_good_project"
-  | "testimonial";
+  | "testimonial"
+  | "be_facilitator";
 
 type StatusType = "pending" | "reviewed" | "archived";
 
@@ -65,6 +66,20 @@ type FormSubmission = {
   recommendRating?: number;
   testimonialComment?: string;
   agreeToShare?: boolean;
+  instagramHandle?: string;
+  expertiseArea?: string;
+  currentRole?: string;
+  yearsOfExperience?: string;
+  workshopTitle?: string;
+  learningOutcomes?: string;
+  formatPreference?: string;
+  sessionLength?: string;
+  numberOfDays?: string;
+  hasFacilitateBefore?: boolean;
+  previousWorkshopDetails?: string;
+  portfolioUrl?: string;
+  documentationComfort?: string;
+  additionalInfo?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -192,6 +207,25 @@ export default function FormsPage() {
         { key: "recommendRating", label: "Recommend Rating" },
         { key: "testimonialComment", label: "Testimonial Comment" },
         { key: "agreeToShare", label: "Agree To Share" },
+      ];
+    }
+    if (type === "be_facilitator") {
+      return [
+        ...common,
+        { key: "instagramHandle", label: "Instagram Handle" },
+        { key: "expertiseArea", label: "Expertise Area" },
+        { key: "currentRole", label: "Current Role" },
+        { key: "yearsOfExperience", label: "Years of Experience" },
+        { key: "workshopTitle", label: "Workshop Title" },
+        { key: "learningOutcomes", label: "Learning Outcomes" },
+        { key: "formatPreference", label: "Format Preference" },
+        { key: "sessionLength", label: "Session Length" },
+        { key: "numberOfDays", label: "Number of Days" },
+        { key: "hasFacilitateBefore", label: "Has Facilitated Before" },
+        { key: "previousWorkshopDetails", label: "Previous Workshop Details" },
+        { key: "portfolioUrl", label: "Portfolio/CV Link" },
+        { key: "documentationComfort", label: "Documentation Comfort" },
+        { key: "additionalInfo", label: "Additional Info" },
       ];
     }
     const maxMedia =
@@ -1502,6 +1536,237 @@ export default function FormsPage() {
         </>
       );
     }
+    if (current.formType === "be_facilitator") {
+      return (
+        <>
+          {modalType === "view" ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Instagram Handle
+                  </label>
+                  <input
+                    value={current.instagramHandle || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Expertise Area
+                  </label>
+                  <input
+                    value={current.expertiseArea || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Current Role
+                  </label>
+                  <input
+                    value={current.currentRole || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Years of Experience
+                  </label>
+                  <input
+                    value={current.yearsOfExperience || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-3 mt-4 border-t pt-4">
+                <h3 className="mb-2 font-semibold text-secondary">Workshop Details</h3>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm font-medium">
+                      Workshop Title
+                    </label>
+                    <input
+                      value={current.workshopTitle || ""}
+                      readOnly
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm font-medium">
+                      Learning Outcomes
+                    </label>
+                    <textarea
+                      value={current.learningOutcomes || ""}
+                      readOnly
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Format Preference
+                    </label>
+                    <input
+                      value={current.formatPreference || ""}
+                      readOnly
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Session Length
+                    </label>
+                    <input
+                      value={current.sessionLength || ""}
+                      readOnly
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Number of Days
+                    </label>
+                    <input
+                      value={current.numberOfDays || ""}
+                      readOnly
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-3 mt-4 border-t pt-4">
+                <h3 className="mb-2 font-semibold text-secondary">Previous Experience</h3>
+                <div className="mb-3">
+                  <label className="mb-1 block text-sm font-medium">
+                    Has Facilitated Before
+                  </label>
+                  <input
+                    value={current.hasFacilitateBefore ? "Yes" : "No"}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="mb-1 block text-sm font-medium">
+                    Previous Workshop Details
+                  </label>
+                  <textarea
+                    value={current.previousWorkshopDetails || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-3 mt-4 border-t pt-4">
+                <h3 className="mb-2 font-semibold text-secondary">Additional Info</h3>
+                <div className="mb-3">
+                  <label className="mb-1 block text-sm font-medium">
+                    Portfolio/CV Link
+                  </label>
+                  {current.portfolioUrl ? (
+                    <a
+                      href={current.portfolioUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 underline"
+                    >
+                      {current.portfolioUrl}
+                    </a>
+                  ) : (
+                    <p className="text-sm text-gray-500">No link provided</p>
+                  )}
+                </div>
+                <div className="mb-3">
+                  <label className="mb-1 block text-sm font-medium">
+                    Documentation Comfort
+                  </label>
+                  <input
+                    value={current.documentationComfort || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="mb-1 block text-sm font-medium">
+                    Additional Info
+                  </label>
+                  <textarea
+                    value={current.additionalInfo || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {renderField("instagramHandle", "Instagram Handle")}
+                {renderField("expertiseArea", "Expertise Area")}
+                {renderField("currentRole", "Current Role")}
+                {renderField("yearsOfExperience", "Years of Experience")}
+              </div>
+              <div className="mb-3 mt-4 border-t pt-4">
+                <h3 className="mb-2 font-semibold text-secondary">Workshop Details</h3>
+                {renderField("workshopTitle", "Workshop Title")}
+                {renderField("learningOutcomes", "Learning Outcomes", "textarea")}
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {renderField("formatPreference", "Format Preference")}
+                  {renderField("sessionLength", "Session Length")}
+                  {renderField("numberOfDays", "Number of Days")}
+                </div>
+              </div>
+              <div className="mb-3 mt-4 border-t pt-4">
+                <h3 className="mb-2 font-semibold text-secondary">Previous Experience</h3>
+                <div className="mb-3">
+                  <label className="mb-1 block text-sm font-medium">
+                    Has Facilitated Before
+                  </label>
+                  <select
+                    value={
+                      typeof current.hasFacilitateBefore === "boolean"
+                        ? current.hasFacilitateBefore
+                          ? "true"
+                          : "false"
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        hasFacilitateBefore: e.target.value === "true",
+                      }))
+                    }
+                    className="w-full rounded border p-2"
+                  >
+                    <option value="">Select</option>
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select>
+                </div>
+                {renderField(
+                  "previousWorkshopDetails",
+                  "Previous Workshop Details",
+                  "textarea",
+                )}
+              </div>
+              <div className="mb-3 mt-4 border-t pt-4">
+                <h3 className="mb-2 font-semibold text-secondary">Additional Info</h3>
+                {renderField("portfolioUrl", "Portfolio/CV Link")}
+                {renderField("documentationComfort", "Documentation Comfort")}
+                {renderField("additionalInfo", "Additional Info", "textarea")}
+              </div>
+            </>
+          )}
+        </>
+      );
+    }
     return null;
   };
 
@@ -1545,6 +1810,7 @@ export default function FormsPage() {
                 <option value="share_news">Share News</option>
                 <option value="join_good_project">Join Good Project</option>
                 <option value="testimonial">Testimonials</option>
+                <option value="be_facilitator">Be a Facilitator</option>
               </select>
               <button
                 onClick={handleExport}
@@ -1811,6 +2077,7 @@ export default function FormsPage() {
                         Join Good Project
                       </option>
                       <option value="testimonial">Testimonials</option>
+                      <option value="be_facilitator">Be a Facilitator</option>
                     </select>
                   </div>
                   <div>

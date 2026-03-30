@@ -17,6 +17,10 @@ export async function GET(req: Request) {
     const all = searchParams.get("all") === "true";
 
     const query: any = {};
+    const workshopId = searchParams.get("id");
+    if (workshopId) {
+      query._id = workshopId;
+    }
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },

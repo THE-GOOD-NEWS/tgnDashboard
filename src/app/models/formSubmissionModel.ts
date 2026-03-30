@@ -7,7 +7,9 @@ export interface IFormSubmission extends Document {
     | "partner"
     | "share_news"
     | "join_good_project"
-    | "testimonial";
+    | "testimonial"
+        | "be_facilitator";
+
   status: "pending" | "reviewed" | "archived";
 
   // Common Fields
@@ -69,6 +71,22 @@ export interface IFormSubmission extends Document {
   testimonialComment?: string;
   agreeToShare?: boolean;
 
+    // Be Facilitator Fields
+  instagramHandle?: string;
+  expertiseArea?: string;
+  currentRole?: string;
+  yearsOfExperience?: string;
+  workshopTitle?: string;
+  learningOutcomes?: string;
+  formatPreference?: string;
+  sessionLength?: string;
+  numberOfDays?: string;
+  hasFacilitateBefore?: boolean;
+  previousWorkshopDetails?: string;
+  portfolioUrl?: string;
+  documentationComfort?: string;
+  additionalInfo?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,6 +103,8 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
         "share_news",
         "join_good_project",
         "testimonial",
+                "be_facilitator",
+
       ],
       index: true,
     },
@@ -152,6 +172,22 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
     recommendRating: { type: Number },
     testimonialComment: { type: String },
     agreeToShare: { type: Boolean },
+
+        // Be Facilitator
+    instagramHandle: { type: String },
+    expertiseArea: { type: String },
+    currentRole: { type: String },
+    yearsOfExperience: { type: String },
+    workshopTitle: { type: String },
+    learningOutcomes: { type: String },
+    formatPreference: { type: String },
+    sessionLength: { type: String },
+    numberOfDays: { type: String },
+    hasFacilitateBefore: { type: Boolean },
+    previousWorkshopDetails: { type: String },
+    portfolioUrl: { type: String },
+    documentationComfort: { type: String },
+    additionalInfo: { type: String },
   },
   {
     timestamps: true,
