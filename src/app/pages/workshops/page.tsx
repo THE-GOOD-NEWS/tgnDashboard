@@ -624,7 +624,9 @@ export default function WorkshopsPage() {
 
   const generateAttendancePDF = async (workshop: IWorkshop) => {
     try {
-      const doc = new jsPDF();
+      const doc = new jsPDF({
+        compress: true,
+      });
       const primaryColor: [number, number, number] = [91, 28, 30]; // #5B1C1E in RGB
       
       // Load Logo
@@ -637,9 +639,9 @@ export default function WorkshopsPage() {
         });
         
         // Center the logo at the top
-        const logoWidth = 50; // 25mm width
+        const logoWidth = 50; // Increased as requested
         const logoHeight = (img.height * logoWidth) / img.width;
-        doc.addImage(img, 'PNG', (210 - logoWidth) / 2, 10, logoWidth, logoHeight);
+        doc.addImage(img, 'PNG', (210 - logoWidth) / 2, 10, logoWidth, logoHeight, undefined, 'FAST');
       } catch (err) {
         console.warn("Logo failed to load for PDF, skipping...", err);
       }
