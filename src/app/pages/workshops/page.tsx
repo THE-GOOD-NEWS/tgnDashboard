@@ -23,6 +23,9 @@ import {
 } from "react-icons/fa";
 import { MdOutlineWorkspaces } from "react-icons/md";
 import { HiOutlinePhoto } from "react-icons/hi2";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // ─── Types (match model exactly) ─────────────────────────────────────────────
 interface ISession {
@@ -60,6 +63,19 @@ interface IWorkshopAttendanceRequest {
   updatedAt: string;
 }
 
+interface IWorkshopPackage {
+  _id: string;
+  thumbnail: string;
+  title: string;
+  price: number;
+  maxWorkshops: number;
+  isAllWorkshopsIncluded: boolean;
+  includedWorkshops: string[];
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface IWorkshop {
   _id: string;
   title: string;
@@ -88,7 +104,7 @@ interface IWorkshop {
 
 type ModalMode = "add" | "edit" | "view" | null;
 type ActiveTab = "details" | "sessions" | "attendance" | "images";
-type PageTab = "workshops" | "requests" | "analytics";
+type PageTab = "workshops" | "requests" | "analytics" | "packages";
 
 // ─── Empty templates ──────────────────────────────────────────────────────────
 // ─── Reusable Sub-components ─────────────────────────────────────────────────
@@ -205,6 +221,16 @@ const emptyWorkshop = (): Partial<IWorkshop> => ({
   availableSessions: [],
   notes: "",
   visits: 0,
+});
+
+const emptyPackage = (): Partial<IWorkshopPackage> => ({
+  thumbnail: "",
+  title: "",
+  price: 0,
+  maxWorkshops: 1,
+  isAllWorkshopsIncluded: false,
+  includedWorkshops: [],
+  description: "",
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -398,6 +424,7 @@ export default function WorkshopsPage() {
   const [workshops, setWorkshops] = useState<IWorkshop[]>([]);
   const [allWorkshops, setAllWorkshops] = useState<IWorkshop[]>([]);
   const [selectedWorkshop, setSelectedWorkshop] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -416,6 +443,13 @@ export default function WorkshopsPage() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [current, setCurrent] = useState<Partial<IWorkshop>>(emptyWorkshop());
   const [activeTab, setActiveTab] = useState<ActiveTab>("details");
+
+  // Packages state
+  const [packages, setPackages] = useState<IWorkshopPackage[]>([]);
+  const [pkgModalOpen, setPkgModalOpen] = useState(false);
+  const [pkgModalMode, setPkgModalMode] = useState<ModalMode>(null);
+  const [currentPkg, setCurrentPkg] = useState<Partial<IWorkshopPackage>>(emptyPackage());
+  const [pkgDeleteId, setPkgDeleteId] = useState<string | null>(null);
 
   // Requests state
   const [requests, setRequests] = useState<IWorkshopAttendanceRequest[]>([]);
@@ -508,6 +542,19 @@ export default function WorkshopsPage() {
     fetchWorkshops();
   }, [fetchWorkshops]);
 
+  const fetchPackages = useCallback(async () => {
+    try {
+      const res = await axios.get("/api/workshop-packages");
+      setPackages(res.data.data);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPackages();
+  }, [fetchPackages]);
+
   const fetchSingleWorkshop = useCallback(async (id: string) => {
     try {
       const res = await axios.get(`/api/workshops/${id}`);
@@ -524,10 +571,13 @@ export default function WorkshopsPage() {
       const res = await axios.get("/api/workshop-attendance-requests", {
         params: { workshopId },
       });
+      // Filter out requests for workshops that don't exist (where workshopId is null after population)
+      const validRequests = res.data.data.filter((req: any) => req.workshopId);
+      
       if (workshopId) {
-        setRequests(res.data.data);
+        setRequests(validRequests);
       } else {
-        setAllRequests(res.data.data);
+        setAllRequests(validRequests);
       }
     } catch (e) {
       console.error(e);
@@ -540,6 +590,111 @@ export default function WorkshopsPage() {
     fetchRequests();
   }, [fetchRequests]);
 
+  const exportToExcel = () => {
+    const filteredRequests = allRequests.filter((req) => {
+      const matchWorkshop = !selectedWorkshop || (typeof req.workshopId === "object" ? req.workshopId._id : req.workshopId) === selectedWorkshop;
+      const matchStatus = !selectedStatus || req.status === selectedStatus;
+      return matchWorkshop && matchStatus;
+    });
+
+    const excelData = filteredRequests.map((req) => ({
+      "Workshop Title": typeof req.workshopId === "object" ? req.workshopId.title : "N/A",
+      "Requester Name": req.name,
+      "Email": req.email,
+      "Phone": req.phone,
+      "How Did You Know": req.howDidYouKnow,
+      "Type": req.type,
+      "Status": req.status,
+      "Notes/Expectations": req.notes || "",
+      "Request Date": new Date(req.createdAt).toLocaleString(),
+      "Last Updated": new Date(req.updatedAt).toLocaleString(),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Requests");
+
+    const workshop = allWorkshops.find(w => w._id === selectedWorkshop);
+    const fileName = selectedWorkshop && workshop
+      ? `Requests_${workshop.title.replace(/[^a-z0-9]/gi, '_')}.xlsx`
+      : "All_Workshop_Requests.xlsx";
+
+    XLSX.writeFile(workbook, fileName);
+  };
+
+  const generateAttendancePDF = async (workshop: IWorkshop) => {
+    try {
+      const doc = new jsPDF();
+      const primaryColor: [number, number, number] = [91, 28, 30]; // #5B1C1E in RGB
+      
+      // Load Logo
+      try {
+        const img = new Image();
+        img.src = '/theGoodSpace/10.png';
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+        
+        // Center the logo at the top
+        const logoWidth = 50; // 25mm width
+        const logoHeight = (img.height * logoWidth) / img.width;
+        doc.addImage(img, 'PNG', (210 - logoWidth) / 2, 10, logoWidth, logoHeight);
+      } catch (err) {
+        console.warn("Logo failed to load for PDF, skipping...", err);
+      }
+      
+      // Header (Pushed down to make room for logo)
+      doc.setFontSize(22);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text("Attendance List", 105, 55, { align: "center" });
+      
+      doc.setFontSize(10);
+      doc.setTextColor(120);
+      doc.text("Generated on " + new Date().toLocaleString(), 105, 62, { align: "center" });
+      
+      // Details Section
+      doc.setDrawColor(210);
+      doc.line(14, 68, 196, 68);
+      
+      doc.setFontSize(14);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text(workshop.title, 14, 78);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Location: ${workshop.location?.altText || 'N/A'}`, 14, 86);
+      doc.text(`Schedule: ${fmt(workshop.startDate)} to ${fmt(workshop.endDate)}`, 14, 91);
+      doc.text(`Capacity: ${workshop.slots} slots`, 14, 96);
+      doc.text(`Current Attendees: ${workshop.attendance?.length || 0}`, 14, 101);
+      
+      // Table
+      const tableColumn = ["#", "Attendee Name", "Email Address", "Phone Number"];
+      const tableRows = (workshop.attendance || []).map((att, index) => [
+        index + 1,
+        att.name,
+        att.email,
+        att.phone
+      ]);
+      
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 108,
+        theme: 'striped',
+        headStyles: { fillColor: primaryColor, fontStyle: 'bold', textColor: [255, 255, 255] as [number, number, number] },
+        styles: { fontSize: 9, cellPadding: 3.5 },
+        alternateRowStyles: { fillColor: [248, 245, 245] },
+        margin: { top: 108 }
+      });
+      
+      doc.save(`Attendance_List_${workshop.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+    } catch (error) {
+      console.error("PDF Generation error:", error);
+      alert("Error generating PDF. Please check the console for details.");
+    }
+  };
+
   useEffect(() => {
     if (topTab === "requests" || topTab === "analytics") {
       fetchRequests();
@@ -551,6 +706,53 @@ export default function WorkshopsPage() {
       fetchRequests(current._id);
     }
   }, [modalOpen, current._id, fetchRequests]);
+
+  // ── Package Modal helpers ──────────────────────────────────────────────────
+  const openAddPkg = () => {
+    setCurrentPkg(emptyPackage());
+    setPkgModalMode("add");
+    setPkgModalOpen(true);
+  };
+
+  const openEditPkg = (p: IWorkshopPackage) => {
+    setCurrentPkg({ ...p });
+    setPkgModalMode("edit");
+    setPkgModalOpen(true);
+  };
+  
+  const closePkgModal = () => {
+    setPkgModalOpen(false);
+    setPkgModalMode(null);
+    setCurrentPkg(emptyPackage());
+  };
+  
+  const setPkgField = (key: keyof IWorkshopPackage, value: any) =>
+    setCurrentPkg((p) => ({ ...p, [key]: value }));
+
+  const handlePkgSubmit = async () => {
+    try {
+      if (pkgModalMode === "add") {
+        await axios.post("/api/workshop-packages", currentPkg);
+      } else if (pkgModalMode === "edit") {
+        await axios.put(`/api/workshop-packages/${currentPkg._id}`, currentPkg);
+      }
+      closePkgModal();
+      fetchPackages();
+    } catch (e: any) {
+      alert(e?.response?.data?.error || "Error saving package");
+    }
+  };
+
+  const handlePkgDelete = async () => {
+    if (!pkgDeleteId) return;
+    try {
+      await axios.delete(`/api/workshop-packages/${pkgDeleteId}`);
+      setPkgDeleteId(null);
+      fetchPackages();
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // ── Modal helpers ──────────────────────────────────────────────────────────
   const openAdd = () => {
@@ -789,16 +991,16 @@ export default function WorkshopsPage() {
             </div>
           </div>
           <button
-            onClick={openAdd}
+            onClick={() => topTab === "packages" ? openAddPkg() : openAdd()}
             className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:opacity-90 hover:scale-105 active:scale-95"
           >
             <FaPlus />
-            New Workshop
+            {topTab === "packages" ? "New Package" : "New Workshop"}
           </button>
         </div>
 
-        <div className="mb-8 flex border-b border-stroke dark:border-strokedark">
-          {(["workshops", "requests", "analytics"] as PageTab[]).map((t) => {
+        <div className="mb-8 flex overflow-x-auto no-scrollbar border-b border-stroke dark:border-strokedark">
+          {(["workshops", "packages", "requests", "analytics"] as PageTab[]).map((t) => {
             const unreadCount = t === "requests" ? allRequests.filter(r => !r.seen).length : 0;
             return (
               <button
@@ -823,7 +1025,7 @@ export default function WorkshopsPage() {
         {topTab === "workshops" && (
           <>
             {/* ── Search ── */}
-            <div className="mb-6">
+            <div className="mb-6 gap-2">
               <input
                 type="text"
                 placeholder="Search workshops…"
@@ -947,6 +1149,13 @@ export default function WorkshopsPage() {
                             <FaEye size={15} />
                           </button>
                           <button
+                            onClick={() => generateAttendancePDF(w)}
+                            title="Download Attendance PDF"
+                            className="rounded-lg p-2 text-gray-500 transition hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/40 dark:hover:text-green-400"
+                          >
+                            <FaUsers size={15} />
+                          </button>
+                          <button
                             onClick={() => openEdit(w)}
                             title="Edit"
                             className="rounded-lg p-2 text-gray-500 transition hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/40 dark:hover:text-amber-400"
@@ -995,6 +1204,59 @@ export default function WorkshopsPage() {
           </>
         )}
 
+        {topTab === "packages" && (
+          <div className="rounded-2xl border border-stroke bg-white shadow-md dark:border-strokedark dark:bg-boxdark overflow-hidden">
+            <div className="border-b border-stroke px-6 py-4 dark:border-strokedark bg-gray-50 dark:bg-meta-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Workshop Packages</h2>
+              <span className="text-xs font-bold text-gray-500">{packages.length} Total Packages</span>
+            </div>
+            {packages.length === 0 ? (
+               <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
+                 <MdOutlineWorkspaces size={56} className="opacity-20 mb-2" />
+                 <p className="text-base font-medium">No packages found</p>
+               </div>
+            ) : (
+               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6 bg-gray-50 dark:bg-boxdark/50">
+                 {packages.map(pkg => (
+                    <div key={pkg._id} className="rounded-xl border border-stroke bg-white dark:border-strokedark dark:bg-meta-4 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
+                       {pkg.thumbnail ? (
+                         <div className="h-40 w-full overflow-hidden bg-gray-100 dark:bg-boxdark">
+                           <img src={pkg.thumbnail} alt={pkg.title} className="h-full w-full object-cover" />
+                         </div>
+                       ) : (
+                         <div className="h-40 w-full bg-gray-100 dark:bg-boxdark flex items-center justify-center text-gray-400">
+                           <HiOutlinePhoto size={40} />
+                         </div>
+                       )}
+                       <div className="p-5 flex-1 flex flex-col">
+                          <h3 className="font-bold text-lg text-black dark:text-white mb-1">{pkg.title}</h3>
+                          <p className="text-primary font-black text-xl mb-3">{pkg.price?.toLocaleString()} EGP</p>
+                          <div className="flex gap-2 flex-wrap mb-4">
+                            <span className="px-2.5 py-1 bg-gray-100 dark:bg-boxdark rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300">
+                              {pkg.maxWorkshops} Workshops Allowed
+                            </span>
+                            <span className="px-2.5 py-1 bg-gray-100 dark:bg-boxdark rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300">
+                              {pkg.isAllWorkshopsIncluded ? "All Workshops" : `${pkg.includedWorkshops.length} Specific Workshops`}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500 line-clamp-2 flex-1">{pkg.description}</p>
+                          
+                          <div className="flex items-center gap-2 mt-5 pt-4 border-t border-stroke dark:border-strokedark">
+                             <button onClick={() => openEditPkg(pkg)} className="flex-1 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-boxdark dark:text-gray-300 dark:hover:bg-gray-700 transition">
+                               Edit
+                             </button>
+                             <button onClick={() => setPkgDeleteId(pkg._id)} className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 transition">
+                               Delete
+                             </button>
+                          </div>
+                       </div>
+                    </div>
+                 ))}
+               </div>
+            )}
+          </div>
+        )}
+
         {topTab === "requests" && (
           <div className="rounded-2xl border border-stroke bg-white shadow-md dark:border-strokedark dark:bg-boxdark overflow-hidden">
             <div className="border-b border-stroke px-6 py-4 dark:border-strokedark bg-gray-50 dark:bg-meta-4 flex items-center justify-between">
@@ -1007,7 +1269,7 @@ export default function WorkshopsPage() {
               <div className="py-20 text-center text-gray-400">No requests found</div>
             ) : (
               <div className="overflow-x-auto">
-                <div className="p-4 bg-white dark:bg-boxdark border-b dark:border-strokedark">
+                <div className="p-4 bg-white dark:bg-boxdark border-b dark:border-strokedark flex flex-col sm:flex-row sm:items-center">
                   <select
                     value={selectedWorkshop}
                     onChange={(e) => {
@@ -1023,6 +1285,28 @@ export default function WorkshopsPage() {
                       </option>
                     ))}
                   </select>
+
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => {
+                      setSelectedStatus(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full max-w-[200px] rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white sm:ml-4 mt-4 sm:mt-0"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                  
+                  <button
+                    onClick={exportToExcel}
+                    className="mt-4 sm:mt-0 sm:ml-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#107c41] px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:opacity-90 hover:scale-105 active:scale-95"
+                  >
+                    <FaDownload />
+                    Export to Excel
+                  </button>
                 </div>
                 <table className="w-full text-sm">
                   <thead>
@@ -1030,7 +1314,7 @@ export default function WorkshopsPage() {
                       <th className="px-6 py-4">Receipt</th>
                       <th className="px-6 py-4">Requester</th>
                       <th className="px-6 py-4">Program</th>
-                      <th className="px-6 py-4">Notes</th>
+                      <th className="px-6 py-4">Expected to learn</th>
                       <th className="px-6 py-4">Type</th>
                       <th className="px-6 py-4">Status</th>
                       <th className="px-6 py-4">Date</th>
@@ -1040,12 +1324,9 @@ export default function WorkshopsPage() {
                   <tbody className="divide-y divide-stroke dark:divide-strokedark">
                     {allRequests
                       .filter((req) => {
-                        if (!selectedWorkshop) return true;
-                        const wId =
-                          typeof req.workshopId === "object"
-                            ? req.workshopId._id
-                            : req.workshopId;
-                        return wId === selectedWorkshop;
+                        const matchWorkshop = !selectedWorkshop || (typeof req.workshopId === "object" ? req.workshopId._id : req.workshopId) === selectedWorkshop;
+                        const matchStatus = !selectedStatus || req.status === selectedStatus;
+                        return matchWorkshop && matchStatus;
                       })
                       .map((req) => (
                       <tr key={req._id} className="hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors">
@@ -1588,7 +1869,7 @@ export default function WorkshopsPage() {
                     <div className="h-px w-full bg-stroke dark:bg-strokedark my-2"></div>
 
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                      <div className="sm:col-span-2">
+                      {/* <div className="sm:col-span-2">
                         <Field label="Internal Notes (only visible to admins)">
                           <textarea
                             rows={2}
@@ -1599,7 +1880,7 @@ export default function WorkshopsPage() {
                             placeholder="Any private notes about this workshop..."
                           />
                         </Field>
-                      </div>
+                      </div> */}
                       <Field label="Total Page Visits">
                         <div className="flex h-[42px] items-center gap-3 rounded-xl border border-transparent bg-gray-50 px-4 py-2 font-bold text-black dark:bg-meta-4 dark:text-white">
                           <FaEye className="text-primary" />
@@ -1946,7 +2227,7 @@ export default function WorkshopsPage() {
                               </div>
                               {req.notes && (
                                 <div className="mt-4 border-t border-stroke pt-3 dark:border-strokedark">
-                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight mb-1">Requester Notes:</p>
+                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight mb-1">Expected to learn:</p>
                                   <p className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-meta-4/40 p-3 rounded-lg border border-stroke dark:border-strokedark">
                                     {req.notes}
                                   </p>
@@ -2194,7 +2475,7 @@ export default function WorkshopsPage() {
                     </CldUploadWidget>
                   </Field>
 
-                  <Field label="Internal Notes / Requester Message">
+                  <Field label="Expected to learn">
                     <textarea
                       rows={4}
                       value={currentReq.notes || ""}
@@ -2381,6 +2662,118 @@ export default function WorkshopsPage() {
             </div>
           </div>
         )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            Package Modals
+        ══════════════════════════════════════════════════════════════════ */}
+        {pkgModalOpen && (
+          <div className="fixed md:pl-72.5 inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-6 backdrop-blur-sm sm:items-center">
+            <div className="relative w-full max-w-3xl rounded-2xl bg-white shadow-2xl dark:bg-boxdark flex flex-col max-h-[90vh]">
+              <div className="flex items-center justify-between rounded-t-2xl bg-primary px-6 py-4 shrink-0">
+                <h2 className="text-xl font-bold text-white tracking-wide">
+                  {pkgModalMode === "add" ? "New Package" : "Edit Package"}
+                </h2>
+                <button onClick={closePkgModal} className="rounded-full p-1.5 text-white/80 transition hover:text-white hover:bg-white/20">
+                  <FaTimes size={18} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto px-6 py-6 flex-1 space-y-6">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field label="Package Title" required>
+                    <input type="text" value={currentPkg.title || ""} onChange={(e) => setPkgField("title", e.target.value)} className={inputCls(false)} placeholder="e.g. 5 Workshops Bundle" />
+                  </Field>
+                  <Field label="Price (EGP)" required>
+                    <div className="relative">
+                      <FaMoneyBillWave className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                      <input type="number" min={0} value={currentPkg.price ?? 0} onChange={(e) => setPkgField("price", Number(e.target.value))} className={`${inputCls(false)} pl-10`} />
+                    </div>
+                  </Field>
+                </div>
+
+                 <Field label="Package Description" required>
+                    <textarea rows={3} value={currentPkg.description || ""} onChange={(e) => setPkgField("description", e.target.value)} className={inputCls(false)} />
+                 </Field>
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                   <Field label="Total Allowed Workshops (Max for user)" required>
+                      <input type="number" min={1} value={currentPkg.maxWorkshops ?? 1} onChange={(e) => setPkgField("maxWorkshops", Number(e.target.value))} className={inputCls(false)} />
+                   </Field>
+                </div>
+
+                <div className="border border-stroke dark:border-strokedark rounded-xl p-5 bg-gray-50 dark:bg-meta-4 mt-2">
+                   <label className="flex items-center gap-3 cursor-pointer">
+                     <input type="checkbox" checked={currentPkg.isAllWorkshopsIncluded || false} onChange={(e) => setPkgField("isAllWorkshopsIncluded", e.target.checked)} className="w-5 h-5 accent-primary" />
+                     <span className="font-bold text-sm text-black dark:text-white">Allow choosing from ALL workshops</span>
+                   </label>
+                   {!currentPkg.isAllWorkshopsIncluded && (
+                     <div className="mt-4 animate-fade-in">
+                       <Field label="Select Included Workshops">
+                         <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                           {allWorkshops.length === 0 ? <span className="text-xs text-gray-500">No workshops available</span> : allWorkshops.map(w => {
+                             const isSelected = (currentPkg.includedWorkshops || []).includes(w._id);
+                             return (
+                               <label key={w._id} className="flex flex-row items-center gap-2 cursor-pointer text-sm">
+                                 <input type="checkbox" checked={isSelected} onChange={(e) => {
+                                      const arr = [...(currentPkg.includedWorkshops || [])];
+                                      if (e.target.checked) arr.push(w._id);
+                                      else {
+                                         const idx = arr.indexOf(w._id);
+                                         if (idx > -1) arr.splice(idx, 1);
+                                      }
+                                      setPkgField("includedWorkshops", arr);
+                                   }}
+                                 />
+                                 <span>{w.title}</span>
+                               </label>
+                             );
+                           })}
+                         </div>
+                       </Field>
+                     </div>
+                   )}
+                </div>
+
+                <Field label="Thumbnail Image" required>
+                  <CldUploadWidget uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "workshops"} onSuccess={(result: any) => { if (result?.info?.secure_url) setPkgField("thumbnail", result.info.secure_url); }}>
+                    {({ open }) => (
+                      <div className="flex items-center gap-4">
+                        {currentPkg.thumbnail ? (
+                          <div className="group relative h-32 w-48 flex-shrink-0 overflow-hidden rounded-xl border border-stroke shadow-sm transition">
+                            <img src={currentPkg.thumbnail} alt="Thumbnail" className="h-full w-full object-cover" />
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setPkgField("thumbnail", ""); }} className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition group-hover:opacity-100"><FaTimes size={10} /></button>
+                            <button type="button" onClick={() => open()} className="absolute inset-0 z-10" />
+                          </div>
+                        ) : (
+                          <button type="button" onClick={() => open()} className="flex h-32 w-48 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-gray-400 transition hover:border-primary"><HiOutlinePhoto size={28} /><span className="text-xs font-bold">Upload Image</span></button>
+                        )}
+                      </div>
+                    )}
+                  </CldUploadWidget>
+                </Field>
+              </div>
+
+              <div className="shrink-0 border-t border-stroke bg-gray-50 dark:border-strokedark dark:bg-meta-4 p-4 px-6 rounded-b-2xl flex justify-end gap-3">
+                <button onClick={closePkgModal} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+                <button onClick={handlePkgSubmit} className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white transition hover:bg-opacity-90 active:scale-95">Save Package</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {pkgDeleteId && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-boxdark border border-stroke dark:border-strokedark">
+              <h3 className="mb-2 text-xl font-bold text-black dark:text-white tracking-wide">Delete Package?</h3>
+              <p className="mb-8 text-sm text-gray-500 line-clamp-3">This action cannot be undone.</p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setPkgDeleteId(null)} className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-semibold hover:bg-gray-50 transition dark:bg-boxdark">Cancel</button>
+                <button onClick={handlePkgDelete} className="rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700 transition">Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
       <style jsx global>{`
         @media print {

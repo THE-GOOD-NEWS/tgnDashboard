@@ -25,7 +25,10 @@ export async function GET(req: Request) {
         createdAt: -1,
       });
 
-    return NextResponse.json({ data: requests }, { status: 200 });
+    // Filter out requests where the referenced workshop no longer exists
+    const validRequests = requests.filter((req: any) => req.workshopId);
+
+    return NextResponse.json({ data: validRequests }, { status: 200 });
   } catch (error: any) {
     console.error("GET /api/workshop-attendance-requests error:", error);
     return NextResponse.json(
