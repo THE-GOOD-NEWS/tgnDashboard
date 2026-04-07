@@ -32,3 +32,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function PATCH(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const action = searchParams.get("action");
+
+    if (action === "markSeen") {
+      await WorkshopPackageRequestModel.updateMany({ seen: false }, { $set: { seen: true } });
+      return NextResponse.json({ message: "All requests marked as seen" }, { status: 200 });
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

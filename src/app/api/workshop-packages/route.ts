@@ -35,6 +35,15 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const data = await req.json();
+    
+    if (!data.slug && data.title) {
+        data.slug = data.title
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-")
+            .replace(/-+/g, "-")
+            .trim();
+    }
 
     const newPackage = new WorkshopPackageModel(data);
     await newPackage.save();

@@ -21,6 +21,10 @@ export async function GET(req: Request) {
     if (workshopId) {
       query._id = workshopId;
     }
+    const status = searchParams.get("status");
+    if (status) {
+      query.status = status;
+    }
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
@@ -87,7 +91,7 @@ export async function POST(req: Request) {
       data.slug = `${data.slug}-${Date.now()}`;
     }
 
-    const workshop = await WorkshopModel.create(data);
+    const workshop = await WorkshopModel.create({ ...data, status: "active" });
     return NextResponse.json({ data: workshop }, { status: 201 });
   } catch (error: any) {
     console.error("POST /api/workshops error:", error);

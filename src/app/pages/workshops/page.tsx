@@ -54,8 +54,23 @@ interface IWorkshopAttendanceRequest {
   phone: string;
   email: string;
   howDidYouKnow: "TGN" | "Instructor page" | "Ads" | "Friends and Family";
-  type: "available" | "waitlist";
+  type: "available" | "waitlist" ;
   instapayImage?: string;
+  status: "pending" | "approved" | "rejected" |"archived";
+  notes?: string;
+  seen: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface IWorkshopPackageRequest {
+  _id: string;
+  packageId: string | { _id: string; title: string; price: number };
+  selectedWorkshops: any[];
+  name: string;
+  phone: string;
+  email: string;
+  instapayImage: string;
   status: "pending" | "approved" | "rejected";
   notes?: string;
   seen: boolean;
@@ -97,6 +112,7 @@ interface IWorkshop {
   attendance: IAttendance[];
   availableSessions: ISession[];
   visits: number;
+  status: "active" | "draft" | "archived" | "coming soon";
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -104,7 +120,7 @@ interface IWorkshop {
 
 type ModalMode = "add" | "edit" | "view" | null;
 type ActiveTab = "details" | "sessions" | "attendance" | "images";
-type PageTab = "workshops" | "requests" | "analytics" | "packages";
+type PageTab = "workshops" | "requests" | "pkg-requests" | "analytics" | "packages";
 
 // ─── Empty templates ──────────────────────────────────────────────────────────
 // ─── Reusable Sub-components ─────────────────────────────────────────────────
@@ -221,6 +237,7 @@ const emptyWorkshop = (): Partial<IWorkshop> => ({
   availableSessions: [],
   notes: "",
   visits: 0,
+  status: "active",
 });
 
 const emptyPackage = (): Partial<IWorkshopPackage> => ({
@@ -257,6 +274,7 @@ const statusColors: Record<IWorkshopAttendanceRequest["status"], string> = {
   pending: "bg-yellow-100 text-yellow-700",
   approved: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-600",
+  archived:"bg-gray-100 text-gray-600"
 };
 
 // ─── Reusable Tags Input Component ───────────────────────────────────────────
@@ -425,6 +443,7 @@ export default function WorkshopsPage() {
   const [allWorkshops, setAllWorkshops] = useState<IWorkshop[]>([]);
   const [selectedWorkshop, setSelectedWorkshop] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [workshopStatus, setWorkshopStatus] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -458,11 +477,24 @@ export default function WorkshopsPage() {
   const [reqModalOpen, setReqModalOpen] = useState(false);
   const [currentReq, setCurrentReq] = useState<IWorkshopAttendanceRequest | null>(null);
 
+  // Package Requests state
+  const [pkgRequests, setPkgRequests] = useState<IWorkshopPackageRequest[]>([]);
+  const [pkgRequestsLoading, setPkgRequestsLoading] = useState(false);
+
   const analyticsData = useMemo(() => {
-    if (topTab !== "analytics") return { topRequested: [], topWaitlist: [], requestCounts: {}, waitlistCounts: {}, filteredRequests: [] };
+    if (topTab !== "analytics") return { 
+      topRequested: [] as IWorkshop[], 
+      topWaitlist: [] as IWorkshop[], 
+      topComingSoon: [] as IWorkshop[],
+      requestCounts: {} as Record<string, number>, 
+      waitlistCounts: {} as Record<string, number>, 
+      comingSoonCounts: {} as Record<string, number>,
+      filteredRequests: [] as IWorkshopAttendanceRequest[] 
+    };
     
     const requestCounts: Record<string, number> = {};
     const waitlistCounts: Record<string, number> = {};
+    const comingSoonCounts: Record<string, number> = {};
     
     const filteredRequests = allRequests.filter(req => {
       if (analyticsFilterType === "all") return true;
@@ -493,8 +525,9 @@ export default function WorkshopsPage() {
 
     const topRequested = [...workshops].sort((a,b) => (requestCounts[b._id] || 0) - (requestCounts[a._id] || 0)).slice(0, 5);
     const topWaitlist = [...workshops].sort((a,b) => (waitlistCounts[b._id] || 0) - (waitlistCounts[a._id] || 0)).slice(0, 5);
+    const topComingSoon = [...workshops].sort((a,b) => (comingSoonCounts[b._id] || 0) - (comingSoonCounts[a._id] || 0)).slice(0, 5);
 
-    return { topRequested, topWaitlist, requestCounts, waitlistCounts, filteredRequests };
+    return { topRequested, topWaitlist, topComingSoon, requestCounts, waitlistCounts, comingSoonCounts, filteredRequests };
   }, [topTab, allRequests, workshops, analyticsFilterType, analyticsMonth, analyticsStartDate, analyticsEndDate]);
 
   // Session accordion
@@ -521,6 +554,7 @@ export default function WorkshopsPage() {
           search: search || undefined,
           all: topTab !== "workshops",
           id: selectedWorkshop || undefined,
+          status: workshopStatus || undefined,
         },
       });
       setWorkshops(res.data.data);
@@ -536,7 +570,7 @@ export default function WorkshopsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, topTab, allWorkshops.length, selectedWorkshop]);
+  }, [page, search, topTab, allWorkshops.length, selectedWorkshop, workshopStatus]);
 
   useEffect(() => {
     fetchWorkshops();
@@ -589,6 +623,22 @@ export default function WorkshopsPage() {
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
+
+  const fetchPkgRequests = useCallback(async () => {
+    setPkgRequestsLoading(true);
+    try {
+      const res = await axios.get("/api/workshop-package-requests");
+      setPkgRequests(res.data.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPkgRequestsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPkgRequests();
+  }, [fetchPkgRequests]);
 
   const exportToExcel = () => {
     const filteredRequests = allRequests.filter((req) => {
@@ -858,11 +908,37 @@ export default function WorkshopsPage() {
     }
   }, [fetchRequests]);
 
+  const markAllPkgSeen = useCallback(async () => {
+    try {
+      await axios.patch("/api/workshop-package-requests", null, { params: { action: "markSeen" } });
+      fetchPkgRequests();
+    } catch (e) {
+      console.error("Error marking package requests as seen:", e);
+    }
+  }, [fetchPkgRequests]);
+
   useEffect(() => {
     if (topTab === "requests") {
       markAllSeen();
+    } else if (topTab === "pkg-requests") {
+      markAllPkgSeen();
     }
-  }, [topTab, markAllSeen]);
+  }, [topTab, markAllSeen, markAllPkgSeen]);
+
+  const updatePkgAttendanceStatus = async (
+    requestId: string,
+    status: "pending" | "approved" | "rejected" |"archived",
+  ) => {
+    try {
+      await axios.patch(`/api/workshop-package-requests/${requestId}`, {
+        status,
+      });
+      fetchPkgRequests(); // Refresh list
+      fetchWorkshops(); // Sync attendance
+    } catch (e: any) {
+      alert(e?.response?.data?.error || "Error updating status");
+    }
+  };
 
   // ── Attendee Manual CRUD ──────────────────────────────────────────────────
   const openAddAttendee = () => {
@@ -1002,18 +1078,20 @@ export default function WorkshopsPage() {
         </div>
 
         <div className="mb-8 flex overflow-x-auto no-scrollbar border-b border-stroke dark:border-strokedark">
-          {(["workshops", "packages", "requests", "analytics"] as PageTab[]).map((t) => {
-            const unreadCount = t === "requests" ? allRequests.filter(r => !r.seen).length : 0;
+          {(["workshops", "packages", "requests", "pkg-requests", "analytics"] as PageTab[]).map((t) => {
+            let unreadCount = 0;
+            if (t === "requests") unreadCount = allRequests.filter(r => !r.seen).length;
+            if (t === "pkg-requests") unreadCount = pkgRequests.filter(r => !r.seen).length;
             return (
               <button
                 key={t}
                 onClick={() => setTopTab(t)}
-                className={`relative px-8 py-4 text-sm font-bold capitalize transition-all border-b-2 
+                className={`relative px-8 py-4 text-sm font-bold capitalize transition-all border-b-2 whitespace-nowrap
                   ${topTab === t 
                     ? "border-primary text-primary bg-primary/5" 
                     : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50 dark:hover:text-white dark:hover:bg-meta-4"}`}
               >
-                {t}
+                {t.replace("-", " ")}
                 {unreadCount > 0 && (
                   <span className="absolute right-2 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg animate-bounce">
                     {unreadCount}
@@ -1027,7 +1105,7 @@ export default function WorkshopsPage() {
         {topTab === "workshops" && (
           <>
             {/* ── Search ── */}
-            <div className="mb-6 gap-2">
+            <div className="mb-6 flex flex-col sm:flex-row items-center gap-4">
               <input
                 type="text"
                 placeholder="Search workshops…"
@@ -1044,7 +1122,7 @@ export default function WorkshopsPage() {
                   setSelectedWorkshop(e.target.value);
                   setPage(1);
                 }}
-                className="w-full max-w-sm rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white"
+                className="w-full max-w-xs rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white"
               >
                 <option value="">All Workshops</option>
                 {allWorkshops.map((w) => (
@@ -1053,6 +1131,23 @@ export default function WorkshopsPage() {
                   </option>
                 ))}
               </select>
+
+              <select
+                value={workshopStatus}
+                onChange={(e) => {
+                  setWorkshopStatus(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full max-w-[200px] rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white"
+              >
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="draft">Draft</option>
+                <option value="archived">Archived</option>
+                <option value="coming soon">Coming Soon</option>
+              </select>
+              
+
             </div>
             
 
@@ -1077,7 +1172,7 @@ export default function WorkshopsPage() {
                 <thead>
                   <tr className="border-b border-stroke bg-gray-50 dark:border-strokedark dark:bg-meta-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                     <th className="px-5 py-4">Title</th>
-                    <th className="px-5 py-4">Location</th>
+                    <th className="px-5 py-4">Status</th>
                     <th className="px-5 py-4">Start Date</th>
                     <th className="px-5 py-4">End Date</th>
                     <th className="px-5 py-4 text-center">Slots</th>
@@ -1111,15 +1206,32 @@ export default function WorkshopsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-gray-600 dark:text-gray-300 max-w-[140px] truncate">
-                        {w.location?.altText ? (
-                          <span className="flex items-center gap-1.5" title={w.location.altText}>
-                            <FaMapMarkerAlt size={12} className="text-red-400 shrink-0" />
-                            <span className="truncate">{w.location.altText}</span>
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
+                      <td className="px-5 py-4">
+                        {(() => {
+                          const s = w.status || "active";
+                          const colors: Record<string, string> = {
+                            active: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+                            draft: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+                            archived: "bg-gray-200 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400",
+                            "coming soon": "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
+                          };
+                          const dotColors: Record<string, string> = {
+                            active: "bg-green-600",
+                            draft: "bg-blue-600",
+                            archived: "bg-gray-400",
+                            "coming soon": "bg-orange-600",
+                          };
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${colors[s] || colors.active}`}
+                            >
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full animate-pulse ${dotColors[s] || dotColors.active}`}
+                              />
+                              {s}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-5 py-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                         {fmt(w.startDate)}
@@ -1300,6 +1412,7 @@ export default function WorkshopsPage() {
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
                     <option value="rejected">Rejected</option>
+                    <option value="archived">Archived</option>
                   </select>
                   
                   <button
@@ -1372,8 +1485,10 @@ export default function WorkshopsPage() {
                               {req.notes || "—"}
                            </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${req.type === 'waitlist' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter shadow-sm ${
+                            req.type === 'waitlist' ? 'bg-orange-100 text-orange-600 border border-orange-200' : 
+                            'bg-blue-100 text-blue-600 border border-blue-200'}`}>
                             {req.type}
                           </span>
                         </td>
@@ -1387,12 +1502,13 @@ export default function WorkshopsPage() {
                         </td>
                         <td className="px-6 py-4">
                            <div className="flex items-center justify-end gap-2">
-                              {req.status === 'pending' && (
-                                <>
-                                   <button onClick={() => updateAttendanceStatus(req._id, 'approved')} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition" title="Approve"><FaCheck size={12}/></button>
-                                   <button onClick={() => updateAttendanceStatus(req._id, 'rejected')} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition" title="Reject"><FaBan size={12}/></button>
-                                </>
-                              )}
+                              {req.status === 'pending'  && (
+                                  <>
+                                    <button onClick={() => updateAttendanceStatus(req._id, 'approved')} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition" title="Approve"><FaCheck size={12}/></button>
+                                    <button onClick={() => updateAttendanceStatus(req._id, 'rejected')} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition" title="Reject"><FaBan size={12}/></button>
+                                    <button onClick={() => updateAttendanceStatus(req._id, 'archived')} className="p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition" title="Archive"><FaEye size={12}/></button>
+                                  </>
+                                )}
                               <button 
                                 onClick={() => openReqEdit(req)}
                                 className="p-2 text-gray-400 hover:text-amber-500 transition"
@@ -1400,7 +1516,7 @@ export default function WorkshopsPage() {
                               >
                                 <FaEdit size={14} />
                               </button>
-                              <button 
+                              {/* <button 
                                 onClick={() => {
                                   const wId = typeof req.workshopId === 'object' ? req.workshopId._id : req.workshopId;
                                   const found = workshops.find(x => x._id === wId);
@@ -1411,10 +1527,111 @@ export default function WorkshopsPage() {
                                 title="View Workshop"
                               >
                                 <FaEye size={14} />
-                              </button>
+                              </button> */}
                            </div>
                         </td>
                       </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {topTab === "pkg-requests" && (
+          <div className="rounded-2xl border border-stroke bg-white shadow-md dark:border-strokedark dark:bg-boxdark overflow-hidden">
+            <div className="border-b border-stroke px-6 py-4 dark:border-strokedark bg-gray-50 dark:bg-meta-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Package Requests</h2>
+              <span className="text-xs font-bold text-gray-500">{pkgRequests.length} Total Records</span>
+            </div>
+            {pkgRequestsLoading ? (
+              <div className="py-20 text-center text-gray-400">Loading package requests...</div>
+            ) : pkgRequests.length === 0 ? (
+              <div className="py-20 text-center text-gray-400">No package requests found</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-meta-4 text-left text-[10px] font-black uppercase text-gray-400 border-b dark:border-strokedark">
+                      <th className="px-6 py-4">Receipt</th>
+                      <th className="px-6 py-4">Requester</th>
+                      <th className="px-6 py-4">Package</th>
+                      <th className="px-6 py-4">Required Workshops & Slots</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4">Date</th>
+                      <th className="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stroke dark:divide-strokedark">
+                    {pkgRequests.map((req) => (
+                      <tr key={req._id} className="hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors">
+                        <td className="px-6 py-4">
+                          {req.instapayImage ? (
+                            <a href={req.instapayImage} target="_blank" rel="noreferrer" className="block h-12 w-12 overflow-hidden rounded-lg border border-stroke dark:border-strokedark shadow-sm hover:scale-110 transition-transform bg-white">
+                              <img src={req.instapayImage} alt="Payment" className="h-full w-full object-cover" />
+                            </a>
+                          ) : (
+                             <div className="h-12 w-12 rounded-lg bg-gray-100 dark:bg-boxdark flex items-center justify-center text-gray-300">
+                               <HiOutlinePhoto size={20} />
+                             </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-black dark:text-white">{req.name}</div>
+                          <div className="text-[10px] text-gray-400">{req.email}</div>
+                          <div className="text-[10px] text-gray-400">{req.phone}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                           <span className="font-bold text-primary">
+                             {typeof req.packageId === 'object' && req.packageId ? req.packageId.title : 'N/A'}
+                           </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1.5">
+                            {req.selectedWorkshops && req.selectedWorkshops.length > 0 ? (
+                               req.selectedWorkshops.map((wsObj: any, idx: number) => {
+                                 const wId = typeof wsObj === 'object' ? wsObj._id : wsObj;
+                                 const ws = workshops.find((x) => x._id === wId);
+                                 if (!ws) {
+                                   return <span key={idx} className="text-[10px] text-gray-400 italic">• {typeof wsObj === 'object' ? wsObj.title : wId} (Loading stats...)</span>;
+                                 }
+                                 const filled = ws.attendance?.length || 0;
+                                 const isFull = filled >= ws.slots;
+                                 return (
+                                   <div key={ws._id} className="flex items-center gap-2">
+                                     <span className="text-[11px] font-bold text-black dark:text-white line-clamp-1 max-w-[150px]">• {ws.title}</span>
+                                     <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-500 animate-pulse'}`}>
+                                       {filled} / {ws.slots} {isFull && "(FULL)"}
+                                     </span>
+                                   </div>
+                                 );
+                               })
+                            ) : (
+                               <span className="text-[10px] text-gray-400">—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                           <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase shadow-sm ${statusColors[req.status] || 'bg-gray-100 text-gray-600'}`}>
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-[10px] text-gray-400 whitespace-nowrap">
+                          {fmt(req.createdAt)}
+                        </td>
+                        <td className="px-6 py-4">
+                           <div className="flex items-center justify-end gap-2">
+                              {req.status === 'pending' && (
+                                <>
+                                   <button onClick={() => updatePkgAttendanceStatus(req._id, 'approved')} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition" title="Approve"><FaCheck size={12}/></button>
+                                   <button onClick={() => updatePkgAttendanceStatus(req._id, 'rejected')} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition" title="Reject"><FaBan size={12}/></button>
+
+                                </>
+                              )}
+                           </div>
+                        </td>
+                       </tr>
                     ))}
                   </tbody>
                 </table>
@@ -1532,28 +1749,24 @@ export default function WorkshopsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="rounded-2xl border border-stroke bg-white p-6 shadow-md dark:border-strokedark dark:bg-boxdark">
-                <h3 className="font-bold text-lg mb-4">Top Requested Workshops</h3>
+                <h3 className="font-bold text-lg mb-4">Top Requested</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left border-b dark:border-strokedark text-gray-400 font-bold uppercase text-[10px]">
                         <th className="pb-3">Title</th>
                         <th className="pb-3 text-center">Requests</th>
-                        {/* <th className="pb-3 text-center">Conv. Rate</th> */}
                       </tr>
                     </thead>
                     <tbody>
                       {analyticsData.topRequested.map(w => {
                         const rCount = analyticsData.requestCounts[w._id] || 0;
-                        const aCount = w.attendance?.length || 0;
-                        const rate = rCount === 0 ? 0 : Math.round((aCount / rCount) * 100);
                         return (
                           <tr key={w._id} className="border-b last:border-0 dark:border-strokedark">
-                            <td className="py-3 font-bold truncate max-w-[150px]">{w.title}</td>
+                            <td className="py-3 font-bold truncate max-w-[120px]">{w.title}</td>
                             <td className="py-3 text-center font-black text-primary">{rCount}</td>
-                            {/* <td className="py-3 text-center font-bold text-gray-500">{rate}%</td> */}
                           </tr>
                         );
                       })}
@@ -1563,26 +1776,47 @@ export default function WorkshopsPage() {
               </div>
 
               <div className="rounded-2xl border border-stroke bg-white p-6 shadow-md dark:border-strokedark dark:bg-boxdark">
-                <h3 className="font-bold text-lg mb-4">Top Waitlisted Workshops</h3>
+                <h3 className="font-bold text-lg mb-4">Top Waitlisted</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left border-b dark:border-strokedark text-gray-400 font-bold uppercase text-[10px]">
                         <th className="pb-3">Title</th>
                         <th className="pb-3 text-center">Waitlist</th>
-                        {/* <th className="pb-3 text-center">Demand</th> */}
                       </tr>
                     </thead>
                     <tbody>
                       {analyticsData.topWaitlist.map(w => {
                         const wCount = analyticsData.waitlistCounts[w._id] || 0;
-                        const rCount = analyticsData.requestCounts[w._id] || 0;
-                        const demand = rCount === 0 ? 0 : Math.round((wCount / rCount) * 100);
                         return (
                           <tr key={w._id} className="border-b last:border-0 dark:border-strokedark">
-                            <td className="py-3 font-bold truncate max-w-[150px]">{w.title}</td>
+                            <td className="py-3 font-bold truncate max-w-[120px]">{w.title}</td>
                             <td className="py-3 text-center font-black text-orange-500">{wCount}</td>
-                            {/* <td className="py-3 text-center font-bold text-gray-500">{demand}%</td> */}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-stroke bg-white p-6 shadow-md dark:border-strokedark dark:bg-boxdark">
+                <h3 className="font-bold text-lg mb-4">Top Coming Soon</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b dark:border-strokedark text-gray-400 font-bold uppercase text-[10px]">
+                        <th className="pb-3">Title</th>
+                        <th className="pb-3 text-center">Interests</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analyticsData.topComingSoon.map(w => {
+                        const csCount = analyticsData.comingSoonCounts[w._id] || 0;
+                        return (
+                          <tr key={w._id} className="border-b last:border-0 dark:border-strokedark">
+                            <td className="py-3 font-bold truncate max-w-[120px]">{w.title}</td>
+                            <td className="py-3 text-center font-black text-purple-500">{csCount}</td>
                           </tr>
                         );
                       })}
@@ -1707,6 +1941,19 @@ export default function WorkshopsPage() {
                           onChange={(e) => setField("slug", e.target.value)}
                           className={inputCls(isReadOnly)}
                         />
+                      </Field>
+                      <Field label="Workshop Status">
+                        <select
+                          value={current.status || "active"}
+                          disabled={isReadOnly}
+                          onChange={(e) => setField("status", e.target.value)}
+                          className={inputCls(isReadOnly)}
+                        >
+                          <option value="active">Active</option>
+                          <option value="draft">Draft</option>
+                          <option value="coming soon">Coming Soon</option>
+                          <option value="archived">Archived</option>
+                        </select>
                       </Field>
                       <Field label="Start Date" required>
                         <input
@@ -2164,7 +2411,9 @@ export default function WorkshopsPage() {
                                       <p className="font-bold text-black dark:text-white text-base tracking-wide truncate">
                                         {req.name}
                                       </p>
-                                      <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${req.type === 'waitlist' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                                      <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter shadow-sm ${
+                                        req.type === 'waitlist' ? 'bg-orange-100 text-orange-600 border border-orange-200' : 
+                                        'bg-blue-100 text-blue-600 border border-blue-200'}`}>
                                         {req.type}
                                       </span>
                                     </div>
@@ -2194,7 +2443,7 @@ export default function WorkshopsPage() {
                                   </span>
                                   {!isReadOnly && (
                                     <div className="flex items-center gap-1 bg-white dark:bg-boxdark rounded-lg shadow-sm border border-stroke dark:border-strokedark p-1">
-                                      {req.status !== "approved" && (
+                                      {req.status !== "approved" &&  (
                                         <button
                                           onClick={() =>
                                             updateAttendanceStatus(req._id, "approved")
@@ -2205,7 +2454,7 @@ export default function WorkshopsPage() {
                                           <FaCheck size={14} />
                                         </button>
                                       )}
-                                      {req.status !== "rejected" && (
+                                      {req.status !== "rejected"  && (
                                         <button
                                           onClick={() =>
                                             updateAttendanceStatus(req._id, "rejected")
@@ -2214,6 +2463,17 @@ export default function WorkshopsPage() {
                                           className="rounded-md p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 transition dark:hover:bg-red-900/40"
                                         >
                                           <FaBan size={14} />
+                                        </button>
+                                      )}
+                                      {req.status !== "archived" && (
+                                        <button
+                                          onClick={() =>
+                                            updateAttendanceStatus(req._id, "rejected")
+                                          }
+                                          title="Archive"
+                                          className="rounded-md p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 transition dark:hover:bg-red-900/40"
+                                        >
+                                          <FaEye size={14} />
                                         </button>
                                       )}
                                       <button
@@ -2407,6 +2667,7 @@ export default function WorkshopsPage() {
                       >
                         <option value="available">Direct Booking</option>
                         <option value="waitlist">Waitlist</option>
+                        {/* <option value="coming soon">Coming Soon</option> */}
                       </select>
                     </Field>
                     <Field label="Status" required>

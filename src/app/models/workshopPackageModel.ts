@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IWorkshopPackage extends Document {
   thumbnail: string;
+  slug: string;
   title: string;
   price: number;
   maxWorkshops: number;
@@ -17,6 +18,7 @@ export interface IWorkshopPackage extends Document {
 const WorkshopPackageSchema = new Schema<IWorkshopPackage>(
   {
     thumbnail: { type: String, required: true },
+    slug: { type: String, required: true, trim: true },
     title: { type: String, required: true, trim: true },
     price: { type: Number, required: true, min: 0, default: 0 },
     maxWorkshops: { type: Number, required: true, min: 1 },
@@ -28,6 +30,18 @@ const WorkshopPackageSchema = new Schema<IWorkshopPackage>(
     timestamps: true,
   }
 );
+
+WorkshopPackageSchema.pre("save", function (this: IWorkshopPackage, next) {
+  if (!this.slug && this.title) {
+    this.slug = this.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .trim();
+  }
+  next();
+});
 
 const WorkshopPackageModel =
   mongoose.models.workshopPackages ||
