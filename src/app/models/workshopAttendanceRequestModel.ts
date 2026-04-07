@@ -6,9 +6,9 @@ export interface IWorkshopAttendanceRequest extends Document {
   phone: string;
   email: string;
   howDidYouKnow: "TGN" | "Instructor page" | "Ads" | "Friends and Family";
-  type: "available" | "waitlist";
+  type: "available" | "waitlist" ;
   instapayImage: string;
-  status: "pending" | "approved" | "rejected";
+  status?: "pending" | "approved" | "rejected" |"archived";
   notes?: string;
   seen: boolean;
   createdAt: Date;
@@ -38,8 +38,8 @@ const WorkshopAttendanceRequestSchema = new Schema<IWorkshopAttendanceRequest>(
     instapayImage: { type: String, required: false },
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending",
+      enum: ["pending", "approved", "rejected","archived"],
+      required:false,
     },
     notes: { type: String, trim: true },
     seen: { type: Boolean, default: false },

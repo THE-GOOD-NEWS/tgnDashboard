@@ -39,6 +39,7 @@ export interface IWorkshop extends Document {
   availableSessions: ISession[];
   visits: number;
   notes?: string;
+  status: "active" | "draft" | "archived" | "coming soon";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -95,6 +96,11 @@ const WorkshopSchema = new Schema<IWorkshop>(
     availableSessions: { type: [SessionSchema], default: [] },
     notes: { type: String },
     visits: { type: Number, default: 0 },
+    status: {
+      type: String,
+      enum: ["active", "draft", "archived", "coming soon"],
+      default: "active",
+    },
   },
   {
     timestamps: true,

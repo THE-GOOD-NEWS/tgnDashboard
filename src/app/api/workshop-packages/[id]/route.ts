@@ -29,6 +29,15 @@ export async function PUT(req: Request, { params }: RouteContext) {
     const { id } = params;
     const updateData = await req.json();
 
+    if (!updateData.slug && updateData.title) {
+        updateData.slug = updateData.title
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-")
+            .replace(/-+/g, "-")
+            .trim();
+    }
+
     const pkg = await WorkshopPackageModel.findByIdAndUpdate(
       id,
       updateData,
