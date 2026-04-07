@@ -38,11 +38,11 @@ export async function GET(req: Request) {
     const actualLimit = all ? 0 : limit;
 
     const [workshops, total] = await Promise.all([
-      WorkshopModel.find({ ...query, test: false })
+      WorkshopModel.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(actualLimit),
-      WorkshopModel.countDocuments({ ...query, test: false }),
+      WorkshopModel.countDocuments(query ),
     ]);
 
     return NextResponse.json(
