@@ -80,6 +80,7 @@ type FormSubmission = {
   portfolioUrl?: string;
   documentationComfort?: string;
   additionalInfo?: string;
+  teamInstagramLinks?: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -190,6 +191,10 @@ export default function FormsPage() {
         { key: "projectLogoUrl", label: "Project Logo Link" },
         { key: "teamPhotoUrl", label: "Team Photo Link" },
         { key: "projectPageLink", label: "Project Page Link" },
+        {
+          label: "Team Instagram Links",
+          compute: (s) => (s.teamInstagramLinks || []).join("; "),
+        },
       ];
     }
     if (type === "testimonial") {
@@ -1182,6 +1187,29 @@ export default function FormsPage() {
                   <p className="text-sm text-gray-500">No page link</p>
                 )}
               </div>
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium">
+                  Team Instagram Links
+                </label>
+                {Array.isArray(current.teamInstagramLinks) &&
+                current.teamInstagramLinks.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {current.teamInstagramLinks.map((link, idx) => (
+                      <a
+                        key={idx}
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-600 hover:bg-blue-200"
+                      >
+                        Link {idx + 1}
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No instagram links</p>
+                )}
+              </div>
             </>
           ) : (
             <>
@@ -1198,6 +1226,25 @@ export default function FormsPage() {
               {renderField("projectLogoUrl", "Project Logo Link")}
               {renderField("teamPhotoUrl", "Team Photo Link")}
               {renderField("projectPageLink", "Project Page Link")}
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium">
+                  Team Instagram Links (Comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={(current.teamInstagramLinks || []).join(", ")}
+                  onChange={(e) =>
+                    setCurrent((prev) => ({
+                      ...prev,
+                      teamInstagramLinks: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    }))
+                  }
+                  className="w-full rounded border p-2"
+                />
+              </div>
             </>
           )}
         </>
