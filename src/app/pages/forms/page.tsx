@@ -47,6 +47,8 @@ type FormSubmission = {
   faculty?: string;
   university?: string;
   academicYear?: string;
+  graduationMonth?: string;
+  graduationDate?: Date | string;
   aboutProject?: string;
   projectCategory?: string;
   projectLogoUrl?: string;
@@ -183,6 +185,8 @@ export default function FormsPage() {
         { key: "faculty", label: "Faculty" },
         { key: "university", label: "University" },
         { key: "academicYear", label: "Academic Year" },
+        { key: "graduationMonth", label: "Graduation Month" },
+        { key: "graduationDate", label: "Graduation Date" },
         { key: "aboutProject", label: "About Project" },
         { key: "projectCategory", label: "Project Category" },
         { key: "projectLogoUrl", label: "Project Logo Link" },
@@ -491,12 +495,21 @@ export default function FormsPage() {
       );
     }
 
+    let displayValue = value || "";
+    if (inputType === "date" && value) {
+      try {
+        displayValue = new Date(value).toISOString().split("T")[0];
+      } catch (e) {
+        displayValue = value;
+      }
+    }
+
     return (
       <div className="mb-3">
         <label className="mb-1 block text-sm font-medium">{label}</label>
         <input
           type={inputType}
-          value={value || ""}
+          value={displayValue}
           onChange={(e) => setValue(e.target.value)}
           className="w-full rounded border p-2"
         />
@@ -1075,6 +1088,30 @@ export default function FormsPage() {
                     className="w-full rounded border p-2"
                   />
                 </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Graduation Month
+                  </label>
+                  <input
+                    value={current.graduationMonth || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Graduation Date
+                  </label>
+                  <input
+                    value={
+                      current.graduationDate
+                        ? new Date(current.graduationDate).toLocaleDateString()
+                        : ""
+                    }
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
               </div>
               <div className="mb-3">
                 <label className="mb-1 block text-sm font-medium">
@@ -1179,6 +1216,8 @@ export default function FormsPage() {
                 {renderField("faculty", "Faculty")}
                 {renderField("university", "University")}
                 {renderField("academicYear", "Academic Year")}
+                {renderField("graduationMonth", "Graduation Month")}
+                {renderField("graduationDate", "Graduation Date", "date")}
               </div>
               {renderField("aboutProject", "About Project", "textarea")}
               {renderField("projectCategory", "Project Category")}

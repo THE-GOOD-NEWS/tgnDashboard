@@ -54,6 +54,9 @@ export interface IFormSubmission extends Document {
   teamPhotoUrl?: string;
   projectPageLink?: string;
   teamInstagramLinks?: string[];
+    graduationMonth?: string;
+  graduationDate?: Date;
+
 
   // Testimonial Fields
   companyName?: string;
@@ -154,6 +157,8 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
     teamPhotoUrl: { type: String },
     projectPageLink: { type: String },
     teamInstagramLinks: { type: [String] },
+    graduationMonth: { type: String },
+    graduationDate: { type: Date },
 
     // Testimonial
     companyName: { type: String },
