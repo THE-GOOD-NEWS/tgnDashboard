@@ -35,9 +35,7 @@ export interface IFormSubmission extends Document {
   collaborationIdea?: string;
   campaignDetails?: string;
   socialMediaAccounts?: string;
-  contactName?: string;
   contactNumber?: string;
-  contactEmail?: string;
   contactMethod?: string[];
 
   // Share News Fields
@@ -45,8 +43,7 @@ export interface IFormSubmission extends Document {
   mediaUrls?: string[];
 
   // Join Good Project Fields
-  studentName?: string;
-  studentEmail?: string;
+
   projectName?: string;
   faculty?: string;
   university?: string;
@@ -138,9 +135,7 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
     collaborationIdea: { type: String },
     campaignDetails: { type: String },
     socialMediaAccounts: { type: String },
-    contactName: { type: String },
     contactNumber: { type: String },
-    contactEmail: { type: String },
     contactMethod: { type: [String] },
 
     // Share News
@@ -148,8 +143,7 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
     mediaUrls: { type: [String] },
 
     // Join Good Project
-    studentName: { type: String },
-    studentEmail: { type: String },
+
     projectName: { type: String },
     faculty: { type: String },
     university: { type: String },

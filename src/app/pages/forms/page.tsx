@@ -37,14 +37,12 @@ type FormSubmission = {
   collaborationIdea?: string;
   campaignDetails?: string;
   socialMediaAccounts?: string;
-  contactName?: string;
+
   contactNumber?: string;
-  contactEmail?: string;
   contactMethod?: string[];
   story?: string;
   mediaUrls?: string[];
-  studentName?: string;
-  studentEmail?: string;
+
   projectName?: string;
   faculty?: string;
   university?: string;
@@ -101,6 +99,8 @@ export default function FormsPage() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<FormType | "">("");
   const [filterStatus, setFilterStatus] = useState<StatusType | "">("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [current, setCurrent] =
@@ -171,17 +171,14 @@ export default function FormsPage() {
         { key: "collaborationIdea", label: "Collaboration Idea" },
         { key: "campaignDetails", label: "Campaign Details" },
         { key: "socialMediaAccounts", label: "Social Media Accounts" },
-        { key: "contactName", label: "Contact Name" },
         { key: "contactNumber", label: "Contact Number" },
-        { key: "contactEmail", label: "Contact Email" },
         { key: "contactMethod", label: "Preferred Contact Methods" },
       ];
     }
     if (type === "join_good_project") {
       return [
         ...common,
-        { key: "studentName", label: "Student Name" },
-        { key: "studentEmail", label: "Student Email" },
+
         { key: "projectName", label: "Project Name" },
         { key: "faculty", label: "Faculty" },
         { key: "university", label: "University" },
@@ -357,6 +354,8 @@ export default function FormsPage() {
           search,
           formType: filterType || undefined,
           status: filterStatus || undefined,
+          sortBy,
+          sortOrder,
         },
       });
       setSubmissions(res.data.data);
@@ -371,7 +370,7 @@ export default function FormsPage() {
   useEffect(() => {
     fetchSubmissions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, search, filterType, filterStatus]);
+  }, [page, limit, search, filterType, filterStatus, sortBy, sortOrder]);
 
   const openAdd = () => {
     setModalType("add");
@@ -483,11 +482,11 @@ export default function FormsPage() {
       return (
         <div className="mb-3">
           <label className="mb-1 block text-sm font-medium">{label}</label>
-          {/* <textarea
+          <textarea
             value={value || ""}
             onChange={(e) => setValue(e.target.value)}
-            className="w-full rounded border p-2"
-          /> */}
+            className="w-full rounded border p-2 min-h-[120px]"
+          />
         </div>
       );
     }
@@ -939,16 +938,7 @@ export default function FormsPage() {
                   className="w-full rounded border p-2"
                 />
               </div>
-              <div className="mb-3">
-                <label className="mb-1 block text-sm font-medium">
-                  Contact Name
-                </label>
-                <input
-                  value={current.contactName || ""}
-                  readOnly
-                  className="w-full rounded border p-2"
-                />
-              </div>
+
               <div className="mb-3">
                 <label className="mb-1 block text-sm font-medium">
                   Contact Number
@@ -959,16 +949,7 @@ export default function FormsPage() {
                   className="w-full rounded border p-2"
                 />
               </div>
-              <div className="mb-3">
-                <label className="mb-1 block text-sm font-medium">
-                  Contact Email
-                </label>
-                <input
-                  value={current.contactEmail || ""}
-                  readOnly
-                  className="w-full rounded border p-2"
-                />
-              </div>
+
               <div className="mb-3">
                 <label className="mb-1 block text-sm font-medium">
                   Preferred Contact Methods
@@ -991,9 +972,7 @@ export default function FormsPage() {
               )}
               {renderField("campaignDetails", "Campaign Details", "textarea")}
               {renderField("socialMediaAccounts", "Social Media Accounts")}
-              {renderField("contactName", "Contact Name")}
               {renderField("contactNumber", "Contact Number")}
-              {renderField("contactEmail", "Contact Email")}
               <div className="mb-3">
                 <label className="mb-1 block text-sm font-medium">
                   Preferred Contact Methods
@@ -1055,26 +1034,7 @@ export default function FormsPage() {
           {modalType === "view" ? (
             <>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium">
-                    Student Name
-                  </label>
-                  <input
-                    value={current.studentName || ""}
-                    readOnly
-                    className="w-full rounded border p-2"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">
-                    Student Email
-                  </label>
-                  <input
-                    value={current.studentEmail || ""}
-                    readOnly
-                    className="w-full rounded border p-2"
-                  />
-                </div>
+
                 <div>
                   <label className="mb-1 block text-sm font-medium">
                     Project Name
@@ -1123,7 +1083,7 @@ export default function FormsPage() {
                 <textarea
                   value={current.aboutProject || ""}
                   readOnly
-                  className="w-full rounded border p-2"
+                  className="w-full rounded border p-2 min-h-[120px]"
                 />
               </div>
               <div className="mb-3">
@@ -1214,8 +1174,7 @@ export default function FormsPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {renderField("studentName", "Student Name")}
-                {renderField("studentEmail", "Student Email")}
+
                 {renderField("projectName", "Project Name")}
                 {renderField("faculty", "Faculty")}
                 {renderField("university", "University")}
@@ -1833,8 +1792,9 @@ export default function FormsPage() {
         </div>
 
         <div className="w-[97%] rounded bg-white p-4 shadow">
-          <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-5">
-            <div className="md:col-span-2">
+          <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-6">
+            <div className="md:col-span-2 lg:col-span-2">
+              <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase tracking-wider">Search</label>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -1843,6 +1803,7 @@ export default function FormsPage() {
               />
             </div>
             <div>
+              <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</label>
               <select
                 value={filterType}
                 onChange={(e) =>
@@ -1859,16 +1820,33 @@ export default function FormsPage() {
                 <option value="testimonial">Testimonials</option>
                 <option value="be_facilitator">Be a Facilitator</option>
               </select>
-              <button
-                onClick={handleExport}
-                disabled={!filterType || exporting}
-                className="mt-2 w-full rounded bg-green-600 px-3 py-2 text-sm text-white disabled:opacity-50"
-                title={!filterType ? "Select a form type to export" : undefined}
-              >
-                Export to Excel
-              </button>
             </div>
             <div>
+              <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase tracking-wider">Sort By</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full rounded border px-3 py-2"
+              >
+                <option value="createdAt">Date</option>
+                <option value="name">Name</option>
+                <option value="status">Status</option>
+                <option value="formType">Type</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</label>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+                className="w-full rounded border px-3 py-2"
+              >
+                <option value="desc">Newest/Descending</option>
+                <option value="asc">Oldest/Ascending</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</label>
               <select
                 value={filterStatus}
                 onChange={(e) =>
@@ -1883,6 +1861,7 @@ export default function FormsPage() {
               </select>
             </div>
             <div>
+              <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase tracking-wider">Limit</label>
               <select
                 value={limit}
                 onChange={(e) => setLimit(parseInt(e.target.value))}
@@ -1891,8 +1870,21 @@ export default function FormsPage() {
                 <option value={10}>10</option>
                 <option value={20}>20</option>
                 <option value={50}>50</option>
+                <option value={100}>100</option>
               </select>
             </div>
+          </div>
+
+          <div className="mb-4 flex flex-col md:flex-row md:items-end gap-3 px-1">
+            <button
+              onClick={handleExport}
+              disabled={!filterType || exporting}
+              className="rounded bg-green-600 px-4 py-2 text-sm text-white disabled:opacity-50 hover:bg-green-700 transition-colors flex items-center gap-2"
+              title={!filterType ? "Select a form type to export" : undefined}
+            >
+              <FaDownload className="text-xs" />
+              {exporting ? "Exporting..." : "Export to Excel (CSV)"}
+            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -1904,7 +1896,7 @@ export default function FormsPage() {
                   <th className="border p-2">Status</th>
                   <th className="border p-2">Name</th>
                   <th className="border p-2">Email</th>
-                  <th className="border p-2">Phone</th>
+                  {/* <th className="border p-2">Phone</th> */}
                   <th className="border p-2">Created</th>
                   <th className="border p-2">Actions</th>
                 </tr>
@@ -1947,7 +1939,7 @@ export default function FormsPage() {
                       </td>
                       <td className="border p-2">{item.name || "-"}</td>
                       <td className="border p-2">{item.email || "-"}</td>
-                      <td className="border p-2">{item.phoneNumber || "-"}</td>
+                      {/* <td className="border p-2">{item.phoneNumber || "-"}</td> */}
                       <td className="border p-2">
                         {new Date(item.createdAt).toLocaleString()}
                       </td>

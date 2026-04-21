@@ -18,6 +18,8 @@ export async function GET(req: Request) {
     const status = searchParams.get("status") || "";
     const search = searchParams.get("search") || "";
     const all = searchParams.get("all") === "true";
+    const sortBy = searchParams.get("sortBy") || "createdAt";
+    const sortOrder = searchParams.get("sortOrder") === "asc" ? 1 : -1;
 
     const query: any = {};
     if (formType) query.formType = formType;
@@ -33,7 +35,7 @@ export async function GET(req: Request) {
     const total = await FormSubmissionModel.countDocuments(query);
     const skip = all ? 0 : (page - 1) * limit;
     const submissions = await FormSubmissionModel.find(query)
-      .sort({ createdAt: -1 })
+      .sort({ [sortBy]: sortOrder as any })
       .skip(skip)
       .limit(all ? 0 : limit)
       .lean();
