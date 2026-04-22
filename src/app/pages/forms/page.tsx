@@ -4,7 +4,7 @@ import { headerFont } from "@/app/lib/fonts";
 import axios from "axios";
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { FaPlay, FaDownload, FaTrash, FaStar } from "react-icons/fa";
+import { FaPlay, FaDownload, FaTrash, FaStar, FaEye, FaEdit } from "react-icons/fa";
 
 type FormType =
   | "join_team"
@@ -116,6 +116,7 @@ export default function FormsPage() {
   const [viewerList, setViewerList] = useState<string[]>([]);
   const [viewerIndex, setViewerIndex] = useState<number>(0);
   const [exporting, setExporting] = useState(false);
+  const [extraFilters, setExtraFilters] = useState<Record<string, string>>({});
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(total / limit));
@@ -309,6 +310,9 @@ export default function FormsPage() {
         params: {
           formType: filterType,
           limit: 999999, // Large number to get all records
+          search,
+          status: filterStatus || undefined,
+          ...extraFilters,
         },
       });
       const allRecords = res.data.data as FormSubmission[];
@@ -360,6 +364,7 @@ export default function FormsPage() {
           status: filterStatus || undefined,
           sortBy,
           sortOrder,
+          ...extraFilters,
         },
       });
       setSubmissions(res.data.data);
@@ -374,7 +379,7 @@ export default function FormsPage() {
   useEffect(() => {
     fetchSubmissions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, search, filterType, filterStatus, sortBy, sortOrder]);
+  }, [page, limit, search, filterType, filterStatus, sortBy, sortOrder, extraFilters]);
 
   const openAdd = () => {
     setModalType("add");
@@ -1815,6 +1820,34 @@ export default function FormsPage() {
     return null;
   };
 
+  const SortableHeader = ({ label, sortKey }: { label: string; sortKey: string }) => {
+    const isActive = sortBy === sortKey;
+    return (
+      <th
+        className={`cursor-pointer border p-2 transition-colors hover:bg-secondary/90 ${
+          isActive ? "bg-secondary/90" : ""
+        }`}
+        onClick={() => {
+          setPage(1);
+          if (isActive) {
+            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+          } else {
+            setSortBy(sortKey);
+            setSortOrder("desc");
+          }
+        }}
+      >
+        <div className="flex items-center justify-between gap-1">
+          <span>{label}</span>
+          <div className="flex flex-col text-[8px] leading-[1]">
+            <span className={isActive && sortOrder === "asc" ? "text-white" : "text-white/30"}>▲</span>
+            <span className={isActive && sortOrder === "desc" ? "text-white" : "text-white/30"}>▼</span>
+          </div>
+        </div>
+      </th>
+    );
+  };
+
   return (
     <DefaultLayout>
       <div className="flex h-auto min-h-screen w-full flex-col items-center gap-4 bg-backgroundColor px-2 py-4">
@@ -1830,7 +1863,36 @@ export default function FormsPage() {
           </button>
         </div>
 
-        <div className="w-[97%] rounded bg-white p-4 shadow">
+        <div className="flex w-[97%] flex-wrap gap-2">
+          {[
+            { label: "All", value: "" },
+            { label: "Join Team", value: "join_team" },
+            { label: "Contact", value: "contact" },
+            { label: "Partner", value: "partner" },
+            { label: "Share News", value: "share_news" },
+            { label: "Join Good Project", value: "join_good_project" },
+            { label: "Testimonials", value: "testimonial" },
+            { label: "Be a Facilitator", value: "be_facilitator" },
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => {
+                setFilterType(tab.value as FormType | "");
+                setPage(1);
+                setExtraFilters({});
+              }}
+              className={`rounded-t-lg px-6 py-2 text-sm font-medium transition-all ${
+                filterType === tab.value
+                  ? "bg-white text-secondary shadow-[0_-2px_10px_rgba(0,0,0,0.05)]"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-auto rounded-b rounded-tr bg-white p-4 shadow">
           <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-6">
             <div className="md:col-span-2 lg:col-span-2">
               <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase tracking-wider">Search</label>
@@ -1841,7 +1903,7 @@ export default function FormsPage() {
                 className="w-full rounded border px-3 py-2"
               />
             </div>
-            <div>
+            {/* <div>
               <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</label>
               <select
                 value={filterType}
@@ -1859,25 +1921,34 @@ export default function FormsPage() {
                 <option value="testimonial">Testimonials</option>
                 <option value="be_facilitator">Be a Facilitator</option>
               </select>
-            </div>
+            </div> */}
             <div>
               <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase tracking-wider">Sort By</label>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full rounded border px-3 py-2"
               >
                 <option value="createdAt">Date</option>
                 <option value="name">Name</option>
                 <option value="status">Status</option>
                 <option value="formType">Type</option>
+                {filterType === "join_good_project" && (
+                  <option value="graduationDate">Graduation Date</option>
+                )}
               </select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</label>
               <select
                 value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+                onChange={(e) => {
+                  setSortOrder(e.target.value as "asc" | "desc");
+                  setPage(1);
+                }}
                 className="w-full rounded border px-3 py-2"
               >
                 <option value="desc">Newest/Descending</option>
@@ -1914,6 +1985,171 @@ export default function FormsPage() {
             </div>
           </div>
 
+          {filterType && (
+            <div className="mb-6 border-t pt-4">
+              <h3 className="mb-3 text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-secondary"></span>
+                {filterType.replace(/_/g, " ")} Filters
+              </h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                {filterType === "join_team" && (
+                  <>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Resume As</label>
+                      <input
+                        value={extraFilters.resumeAs || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, resumeAs: e.target.value })}
+                        placeholder="Filter by role..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Experience</label>
+                      <input
+                        value={extraFilters.experience || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, experience: e.target.value })}
+                        placeholder="Filter by experience..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </>
+                )}
+                {filterType === "contact" && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-500">Subject</label>
+                    <input
+                      value={extraFilters.subject || ""}
+                      onChange={(e) => setExtraFilters({ ...extraFilters, subject: e.target.value })}
+                      placeholder="Filter by subject..."
+                      className="w-full rounded border px-3 py-2 text-sm"
+                    />
+                  </div>
+                )}
+                {filterType === "partner" && (
+                  <>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Business Name</label>
+                      <input
+                        value={extraFilters.businessName || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, businessName: e.target.value })}
+                        placeholder="Filter by business..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Industry</label>
+                      <input
+                        value={extraFilters.industry || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, industry: e.target.value })}
+                        placeholder="Filter by industry..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </>
+                )}
+                {filterType === "join_good_project" && (
+                  <>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">University</label>
+                      <input
+                        value={extraFilters.university || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, university: e.target.value })}
+                        placeholder="Filter by university..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Faculty</label>
+                      <input
+                        value={extraFilters.faculty || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, faculty: e.target.value })}
+                        placeholder="Filter by faculty..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Project Category</label>
+                      <input
+                        value={extraFilters.projectCategory || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, projectCategory: e.target.value })}
+                        placeholder="Filter by category..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Academic Year</label>
+                      <input
+                        value={extraFilters.academicYear || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, academicYear: e.target.value })}
+                        placeholder="Filter by year..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Graduation Month</label>
+                      <input
+                        value={extraFilters.graduationMonth || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, graduationMonth: e.target.value })}
+                        placeholder="Filter by month..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </>
+                )}
+                {filterType === "testimonial" && (
+                  <>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Company</label>
+                      <input
+                        value={extraFilters.companyName || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, companyName: e.target.value })}
+                        placeholder="Filter by company..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Min Rating</label>
+                      <select
+                        value={extraFilters.minOverallRating || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, minOverallRating: e.target.value })}
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      >
+                        <option value="">Any Rating</option>
+                        <option value="5">5 Stars</option>
+                        <option value="4">4+ Stars</option>
+                        <option value="3">3+ Stars</option>
+                        <option value="2">2+ Stars</option>
+                        <option value="1">1+ Stars</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+                {filterType === "be_facilitator" && (
+                  <>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Expertise</label>
+                      <input
+                        value={extraFilters.expertiseArea || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, expertiseArea: e.target.value })}
+                        placeholder="Filter by expertise..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Format</label>
+                      <input
+                        value={extraFilters.formatPreference || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, formatPreference: e.target.value })}
+                        placeholder="Filter by format..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="mb-4 flex flex-col md:flex-row md:items-end gap-3 px-1">
             <button
               onClick={handleExport}
@@ -1926,17 +2162,25 @@ export default function FormsPage() {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="">
             <table className="w-full rounded border border-gray-200 text-left">
               <thead className="bg-secondary text-creamey">
                 <tr>
-                  <th className="border p-2">#</th>
-                  <th className="border p-2">Type</th>
-                  <th className="border p-2">Status</th>
-                  <th className="border p-2">Name</th>
-                  <th className="border p-2">Email</th>
-                  {/* <th className="border p-2">Phone</th> */}
-                  <th className="border p-2">Created</th>
+                  <th className="border p-2 w-10">#</th>
+                  {!filterType && <SortableHeader label="Type" sortKey="formType" />}
+                  <SortableHeader label="Status" sortKey="status" />
+                  <SortableHeader label="Name" sortKey="name" />
+                  <SortableHeader label="Email" sortKey="email" />
+                  {filterType === "join_team" && <SortableHeader label="Role" sortKey="resumeAs" />}
+                  {filterType === "join_good_project" && (
+                    <>
+                      <th className="border p-2">Project</th>
+                      <th className="border p-2">Month</th>
+                      <SortableHeader label="Grad. Date" sortKey="graduationDate" />
+                    </>
+                  )}
+                  {filterType === "testimonial" && <SortableHeader label="Rating" sortKey="overallRating" />}
+                  <SortableHeader label="Created" sortKey="createdAt" />
                   <th className="border p-2">Actions</th>
                 </tr>
               </thead>
@@ -1959,7 +2203,7 @@ export default function FormsPage() {
                       <td className="border p-2">
                         {(page - 1) * limit + idx + 1}
                       </td>
-                      <td className="border p-2">{item.formType}</td>
+                      {!filterType && <td className="border p-2">{item.formType}</td>}
                       <td className="border p-2">
                         <select
                           value={item.status}
@@ -1969,7 +2213,7 @@ export default function FormsPage() {
                               e.target.value as StatusType,
                             )
                           }
-                          className="rounded border px-2 py-1"
+                          className="rounded border px-2 py-1 text-sm"
                         >
                           <option value="pending">pending</option>
                           <option value="reviewed">reviewed</option>
@@ -1978,29 +2222,51 @@ export default function FormsPage() {
                       </td>
                       <td className="border p-2">{item.name || "-"}</td>
                       <td className="border p-2">{item.email || "-"}</td>
-                      {/* <td className="border p-2">{item.phoneNumber || "-"}</td> */}
+                      {filterType === "join_team" && <td className="border p-2">{item.resumeAs || "-"}</td>}
+                      {filterType === "join_good_project" && (
+                        <>
+                          <td className="border p-2">{item.projectName || "-"}</td>
+                          <td className="border p-2">{item.graduationMonth || "-"}</td>
+                          <td className="border p-2">
+                            {item.graduationDate
+                              ? new Date(item.graduationDate).toLocaleDateString()
+                              : "-"}
+                          </td>
+                        </>
+                      )}
+                      {filterType === "testimonial" && (
+                        <td className="border p-2">
+                          <div className="flex items-center gap-1 text-yellow-400">
+                            <FaStar className="text-[10px]" />
+                            <span className="text-xs font-semibold text-gray-700">{item.overallRating || 0}</span>
+                          </div>
+                        </td>
+                      )}
                       <td className="border p-2">
                         {new Date(item.createdAt).toLocaleString()}
                       </td>
                       <td className="border p-2">
-                        <div className="flex gap-2">
+                        <div className="flex gap-1.5">
                           <button
                             onClick={() => openView(item)}
-                            className="rounded bg-primary px-2 py-1 text-xs text-white"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-50 text-pink-400 transition-colors hover:bg-blue-100"
+                            title="View"
                           >
-                            View
+                            <FaEye className="text-sm" />
                           </button>
                           <button
                             onClick={() => openEdit(item)}
-                            className="rounded bg-secondary px-2 py-1 text-xs text-creamey"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 transition-colors hover:bg-amber-100"
+                            title="Edit"
                           >
-                            Edit
+                            <FaEdit className="text-sm" />
                           </button>
                           <button
                             onClick={() => deleteSubmission(item._id)}
-                            className="rounded bg-red-500 px-2 py-1 text-xs text-white"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 transition-colors hover:bg-red-100"
+                            title="Delete"
                           >
-                            Delete
+                            <FaTrash className="text-sm" />
                           </button>
                         </div>
                       </td>

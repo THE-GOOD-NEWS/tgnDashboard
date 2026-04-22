@@ -198,6 +198,7 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
 // Indexes
 FormSubmissionSchema.index({ createdAt: -1 });
 FormSubmissionSchema.index({ email: 1 });
+FormSubmissionSchema.index({ graduationDate: 1 });
 
 const FormSubmissionModel =
   mongoose.models.formSubmissions ||

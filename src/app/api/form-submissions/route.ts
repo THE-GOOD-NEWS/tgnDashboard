@@ -32,6 +32,38 @@ export async function GET(req: Request) {
       ];
     }
 
+    // Type-specific field filters
+    const allowedFilterFields = [
+      "resumeAs",
+      "experience",
+      "subject",
+      "industry",
+      "businessName",
+      "university",
+      "faculty",
+      "projectCategory",
+      "academicYear",
+      "companyName",
+      "expertiseArea",
+      "formatPreference",
+    ];
+    for (const field of allowedFilterFields) {
+      const val = searchParams.get(field);
+      if (val) query[field] = { $regex: val, $options: "i" };
+    }
+    // Min overall rating filter for testimonials
+    const minRating = searchParams.get("minOverallRating");
+    if (minRating) query.overallRating = { $gte: parseInt(minRating, 10) };
+
+    // Graduation Date filter for Join Good Project
+    const gradDate = searchParams.get("graduationDate");
+    if (gradDate) {
+      const start = new Date(gradDate);
+      const end = new Date(gradDate);
+      end.setDate(end.getDate() + 1);
+      query.graduationDate = { $gte: start, $lt: end };
+    }
+
     const total = await FormSubmissionModel.countDocuments(query);
     const skip = all ? 0 : (page - 1) * limit;
     const submissions = await FormSubmissionModel.find(query)
