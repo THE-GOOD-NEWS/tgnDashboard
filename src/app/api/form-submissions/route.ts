@@ -46,6 +46,7 @@ export async function GET(req: Request) {
       "companyName",
       "expertiseArea",
       "formatPreference",
+      "graduationMonth",
     ];
     for (const field of allowedFilterFields) {
       const val = searchParams.get(field);
@@ -92,7 +93,15 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const allowedFormTypes = ["join_team", "contact", "partner", "share_news"];
+    const allowedFormTypes = [
+      "join_team",
+      "contact",
+      "partner",
+      "share_news",
+      "join_good_project",
+      "testimonial",
+      "be_facilitator",
+    ];
     if (!body.formType || !allowedFormTypes.includes(body.formType)) {
       return NextResponse.json(
         { error: "Invalid or missing formType" },

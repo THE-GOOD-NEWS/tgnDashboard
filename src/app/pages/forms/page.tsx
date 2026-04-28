@@ -1221,7 +1221,27 @@ export default function FormsPage() {
                 {renderField("faculty", "Faculty")}
                 {renderField("university", "University")}
                 {renderField("academicYear", "Academic Year")}
-                {renderField("graduationMonth", "Graduation Month")}
+                <div className="mb-3">
+                  <label className="mb-1 block text-sm font-medium">
+                    Graduation Month
+                  </label>
+                  <select
+                    value={current.graduationMonth || ""}
+                    onChange={(e) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        graduationMonth: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded border p-2"
+                  >
+                    <option value="">Select Month</option>
+                    <option value="april">April</option>
+                    <option value="may">May</option>
+                    <option value="june">June</option>
+                    <option value="july">July</option>
+                  </select>
+                </div>
                 {renderField("graduationDate", "Graduation Date", "date")}
               </div>
               {renderField("aboutProject", "About Project", "textarea")}
@@ -2086,13 +2106,25 @@ export default function FormsPage() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-500">Graduation Month</label>
-                      <input
+                      <label className="mb-1 block text-xs font-medium text-gray-500">
+                        Graduation Month
+                      </label>
+                      <select
                         value={extraFilters.graduationMonth || ""}
-                        onChange={(e) => setExtraFilters({ ...extraFilters, graduationMonth: e.target.value })}
-                        placeholder="Filter by month..."
+                        onChange={(e) =>
+                          setExtraFilters({
+                            ...extraFilters,
+                            graduationMonth: e.target.value,
+                          })
+                        }
                         className="w-full rounded border px-3 py-2 text-sm"
-                      />
+                      >
+                        <option value="">All Months</option>
+                        <option value="april">April</option>
+                        <option value="may">May</option>
+                        <option value="june">June</option>
+                        <option value="july">July</option>
+                      </select>
                     </div>
                   </>
                 )}
