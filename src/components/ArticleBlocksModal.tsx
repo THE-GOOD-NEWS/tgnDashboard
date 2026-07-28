@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { genUploader } from "uploadthing/client";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import { compressImage } from "@/utils/imageCompression";
+import { UploadButton as UTUploadButton } from "@/utils/uploadthing";
 
 interface ArticleCategory {
   _id: string;
@@ -138,6 +139,14 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
   const isDelete = type === "delete";
   const isView = type === "view";
 
+  const [userRole, setUserRole] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setUserRole(localStorage.getItem("userRole"));
+    }
+  }, []);
+
   const [title, setTitle] = useState("");
   const [titleAR, setTitleAR] = useState("");
   const [slug, setSlug] = useState("");
@@ -209,11 +218,14 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
     const fetchArticleCategories = async () => {
       try {
         const res = await axios.get("/api/article-categories?all=true");
-        if (res.status === 200) {
+        if (res.status === 200 && Array.isArray(res.data?.data)) {
           setArticleCategories(res.data.data);
+        } else {
+          setArticleCategories([]);
         }
       } catch (err) {
         console.error("Error fetching article categories:", err);
+        setArticleCategories([]);
       }
     };
     fetchArticleCategories();
@@ -304,17 +316,45 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
       input.type = "file";
       input.accept = "image/*";
       return new Promise((resolve) => {
-        input.onchange = async () => {
-          const file = input.files?.[0];
-          if (!file) return resolve(undefined);
-          const processed = await compressImage(file);
-          const { uploadFiles } = genUploader<OurFileRouter>();
-          const res: any[] = await uploadFiles("mediaUploader", {
-            files: [processed],
-          });
-          const url = res?.[0]?.url || res?.[0]?.fileUrl || undefined;
-          resolve(url);
+        let isResolved = false;
+        const done = (url?: string) => {
+          if (!isResolved) {
+            isResolved = true;
+            resolve(url);
+          }
         };
+
+        input.onchange = async () => {
+          try {
+            const file = input.files?.[0];
+            if (!file) return done(undefined);
+            const processed = await compressImage(file);
+            const { uploadFiles } = genUploader<OurFileRouter>();
+            const res: any[] = await uploadFiles("mediaUploader", {
+              files: [processed],
+            });
+            const url = res?.[0]?.url || res?.[0]?.fileUrl || undefined;
+            done(url);
+          } catch (err) {
+            console.error("Image upload failed", err);
+            done(undefined);
+          }
+        };
+
+        input.oncancel = () => {
+          done(undefined);
+        };
+
+        const handleFocus = () => {
+          setTimeout(() => {
+            if (!input.files || input.files.length === 0) {
+              done(undefined);
+            }
+            window.removeEventListener("focus", handleFocus);
+          }, 500);
+        };
+        window.addEventListener("focus", handleFocus);
+
         input.click();
       });
     } catch (err) {
@@ -330,19 +370,49 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
       input.accept = "image/*";
       input.multiple = true;
       return new Promise((resolve) => {
-        input.onchange = async () => {
-          const files = Array.from(input.files || []);
-          if (!files.length) return resolve(undefined);
-          const processed = await Promise.all(files.map((f) => compressImage(f)));
-          const { uploadFiles } = genUploader<OurFileRouter>();
-          const res: any[] = await uploadFiles("mediaUploader", {
-            files: processed,
-          });
-          const urls = res
-            .map((r) => r?.url || r?.fileUrl)
-            .filter((u: any) => typeof u === "string");
-          resolve(urls);
+        let isResolved = false;
+        const done = (urls?: string[]) => {
+          if (!isResolved) {
+            isResolved = true;
+            resolve(urls);
+          }
         };
+
+        input.onchange = async () => {
+          try {
+            const files = Array.from(input.files || []);
+            if (!files.length) return done(undefined);
+            const processed = await Promise.all(
+              files.map((f) => compressImage(f)),
+            );
+            const { uploadFiles } = genUploader<OurFileRouter>();
+            const res: any[] = await uploadFiles("mediaUploader", {
+              files: processed,
+            });
+            const urls = res
+              .map((r) => r?.url || r?.fileUrl)
+              .filter((u: any) => typeof u === "string");
+            done(urls);
+          } catch (err) {
+            console.error("Image upload failed", err);
+            done(undefined);
+          }
+        };
+
+        input.oncancel = () => {
+          done(undefined);
+        };
+
+        const handleFocus = () => {
+          setTimeout(() => {
+            if (!input.files || input.files.length === 0) {
+              done(undefined);
+            }
+            window.removeEventListener("focus", handleFocus);
+          }, 500);
+        };
+        window.addEventListener("focus", handleFocus);
+
         input.click();
       });
     } catch (err) {
@@ -581,6 +651,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                   value={status}
                   onChange={(e) => setStatus(e.target.value as any)}
                   className="w-full rounded border px-3 py-2"
+                  disabled={userRole === "guestWriter"}
                 >
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
@@ -593,6 +664,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                   type="checkbox"
                   checked={featured}
                   onChange={(e) => setFeatured(e.target.checked)}
+                  disabled={userRole === "guestWriter"}
                 />
                 <label htmlFor="featured" className="text-sm text-gray-700">
                   Featured
@@ -603,52 +675,59 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
             {/* Featured image & TikTok */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                   Featured Image
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <input
                     value={featuredImage || ""}
                     onChange={(e) => setFeaturedImage(e.target.value)}
-                    className="w-full rounded border px-3 py-2"
+                    className="w-full rounded border px-3 py-2 text-sm"
                     placeholder="Image URL"
                   />
-                  <button
-                    type="button"
-                    disabled={uploadingFeatured}
-                    onClick={async () => {
-                      setUploadingFeatured(true);
-                      try {
-                        const url = await uploadImage();
-                        if (url) setFeaturedImage(url);
-                      } finally {
-                        setUploadingFeatured(false);
-                      }
+                  <UTUploadButton
+                    appearance={{
+                      button:
+                        "bg-primary text-creamey rounded-md px-4 py-2 text-sm font-bold hover:bg-primary/80 transition hover:cursor-pointer min-w-[120px]",
                     }}
-                    className="rounded bg-secondary px-3 py-2 text-white disabled:opacity-50"
-                  >
-                    {uploadingFeatured ? "Uploading..." : "Upload"}
-                  </button>
+                    endpoint="mediaUploader"
+                    onClientUploadComplete={(res) => {
+                      const url = res?.[0]?.url as string | undefined;
+                      if (url) setFeaturedImage(url);
+                    }}
+                    onUploadError={(err) => {
+                      console.error("Upload error:", err);
+                      alert(`Upload failed: ${err.message}`);
+                    }}
+                    onBeforeUploadBegin={async (files) => {
+                      const processed = await Promise.all(
+                        files.map((file) =>
+                          file.type.startsWith("image/")
+                            ? compressImage(file)
+                            : file,
+                        ),
+                      );
+                      return processed;
+                    }}
+                  />
                 </div>
                 {featuredImage && (
-                  <img
-                    src={featuredImage}
-                    alt="Featured"
-                    className="mt-2 h-24 w-auto rounded"
-                  />
+                  <div className="mt-2 flex items-center gap-2">
+                    <img
+                      src={featuredImage}
+                      alt="Featured"
+                      className="h-24 w-auto rounded border object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFeaturedImage("")}
+                      className="text-xs text-red-600 underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 )}
               </div>
-              {/* <div>
-                <label className="mb-1 block text-sm text-gray-700">
-                  TikTok Video URL
-                </label>
-                <input
-                  value={tikTokVideoUrl || ""}
-                  onChange={(e) => setTikTokVideoUrl(e.target.value)}
-                  className="w-full rounded border px-3 py-2"
-                  placeholder="https://www.tiktok.com/@user/video/123..."
-                />
-              </div> */}
             </div>
 
             {/* Excerpt, tags, categories, meta */}
@@ -730,7 +809,7 @@ const ArticleBlocksModal: React.FC<ArticleBlocksModalProps> = ({
                     id="category-dropdown"
                     className="absolute z-10 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg"
                   >
-                    {articleCategories.map((category) => (
+                    {(articleCategories || []).map((category) => (
                       <div
                         key={category._id}
                         className="px-3 py-2 hover:bg-gray-100"

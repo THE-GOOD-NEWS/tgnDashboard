@@ -30,6 +30,6 @@ export function verifyToken(token: string) {
   }
 }
 
-export function generateToken(payload: { id: string; username: string }) {
+export function generateToken(payload: { id: string; username: string; role?: string }) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
 }

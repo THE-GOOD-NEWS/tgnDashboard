@@ -29,6 +29,7 @@ import { TfiNotepad } from "react-icons/tfi";
 interface SidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (arg: boolean) => void;
+  userRole?: string | null;
 }
 
 const menuGroups = [
@@ -254,9 +255,21 @@ const menuGroups = [
   },
 ];
 
-const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
+const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
   const pathname = usePathname();
   const [pageName, setPageName] = useLocalStorage("selectedMenu", "dashboard");
+
+  const filteredMenuGroups = menuGroups.map((group) => {
+    if (userRole === "guestWriter") {
+      return {
+        ...group,
+        menuItems: group.menuItems.filter(
+          (item) => item.label === "Articles" || item.label === "Logout"
+        ),
+      };
+    }
+    return group;
+  });
 
   return (
     <ClickOutside onClick={() => setSidebarOpen(false)}>
@@ -304,7 +317,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           <nav
             className={`${headerFont.className} mt-5 px-4 py-4 lg:mt-9 lg:px-6`}
           >
-            {menuGroups.map((group, groupIndex) => (
+            {filteredMenuGroups.map((group, groupIndex) => (
               <div key={groupIndex}>
                 <ul className="mb-6 flex flex-col gap-2">
                   {group.menuItems.map((menuItem, menuIndex) => (

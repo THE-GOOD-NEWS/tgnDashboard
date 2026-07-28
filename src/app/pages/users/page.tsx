@@ -392,6 +392,7 @@ const UsersPage = () => {
                   <label className="mb-1 block text-sm font-medium">Role</label>
                   <select name="role" className="w-full rounded border p-2">
                     <option value="customer">Customer</option>
+                    <option value="guestWriter">Guest Writer</option>
                     {/* <option value="moderator">Moderator</option> */}
                     <option value="admin">Admin</option>
                   </select>
@@ -445,10 +446,14 @@ const UsersPage = () => {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   const formData = new FormData(e.currentTarget);
+                  const newPassword = formData.get("password") as string;
                   try {
                     await axios.put(`/api/users?userId=${selectedUser._id}`, {
                       username: formData.get("username"),
                       email: formData.get("email"),
+                      ...(newPassword && newPassword.trim() !== ""
+                        ? { password: newPassword.trim() }
+                        : {}),
                       role: formData.get("role"),
                       // isSubscribed: formData.get('subscription') === 'true',
                       emailVerified: formData.get("emailVerified") === "true",
@@ -561,6 +566,17 @@ const UsersPage = () => {
                   />
                 </div>
                 <div className="mb-4">
+                  <label className="mb-1 block text-sm font-medium">
+                    Password (leave blank to keep current)
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    placeholder="Enter new password"
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+                <div className="mb-4">
                   <label className="mb-1 block text-sm font-medium">Role</label>
                   <select
                     name="role"
@@ -568,6 +584,7 @@ const UsersPage = () => {
                     className="w-full rounded border p-2"
                   >
                     <option value="customer">Customer</option>
+                    <option value="guestWriter">Guest Writer</option>
                     {/* <option value="moderator">Moderator</option> */}
                     <option value="admin">Admin</option>
                   </select>

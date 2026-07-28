@@ -127,10 +127,12 @@ export async function PUT(request: Request) {
       }
     }
 
-    // If password is being updated, hash it
-    if (updateData.password) {
+    // If password is being updated, hash it if provided, else delete to preserve existing password
+    if (updateData.password && typeof updateData.password === "string" && updateData.password.trim() !== "") {
       const salt = await bcrypt.genSalt(10);
-      updateData.password = await bcrypt.hash(updateData.password, salt);
+      updateData.password = await bcrypt.hash(updateData.password.trim(), salt);
+    } else {
+      delete updateData.password;
     }
 
     const updatedUser = await UserModel.findByIdAndUpdate(userId, updateData, {

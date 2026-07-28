@@ -9,8 +9,11 @@ export async function POST(request: Request) {
 
     const { username, password } = await request.json();
 
-    // Find user
-    const user = await UserModel.findOne({ username, role: "admin" });
+    // Find user (allow admin and guestWriter)
+    const user = await UserModel.findOne({
+      username,
+      role: { $in: ["admin", "guestWriter"] },
+    });
     if (!user) {
       return NextResponse.json(
         { error: "Invalid username or password" },
@@ -28,11 +31,22 @@ export async function POST(request: Request) {
     }
 
     // Generate token
-    const token = generateToken({ id: user._id, username: user.username });
+    const token = generateToken({
+      id: user._id,
+      username: user.username,
+      role: user.role,
+    });
 
     // Create response
     const response = NextResponse.json(
-      { message: "Login successful" },
+      {
+        message: "Login successful",
+        user: {
+          id: user._id,
+          username: user.username,
+          role: user.role,
+        },
+      },
       { status: 200 },
     );
 

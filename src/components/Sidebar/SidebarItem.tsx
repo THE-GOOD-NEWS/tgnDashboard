@@ -21,6 +21,9 @@ const SidebarItem = ({ item, pageName, setPageName }: any) => {
       } catch (error) {
         console.error("Logout error:", error);
       } finally {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("userRole");
+        }
         // Use Next.js router for SPA navigation
         router.replace("/login");
         // Fallback to hard navigation in case router is blocked

@@ -58,11 +58,16 @@ const ArticlesPage = () => {
       });
 
       const response = await axios.get(`/api/articles?${params}`);
-      setArticles(response.data.data);
-      setTotalPages(response.data.totalPages);
-      setTotalArticles(response.data.total);
+      if (Array.isArray(response.data?.data)) {
+        setArticles(response.data.data);
+      } else {
+        setArticles([]);
+      }
+      setTotalPages(response.data?.totalPages || 1);
+      setTotalArticles(response.data?.total || 0);
     } catch (error) {
       console.error("Error fetching articles:", error);
+      setArticles([]);
     } finally {
       setLoading(false);
     }
@@ -165,21 +170,25 @@ const ArticlesPage = () => {
             <h3 className="text-lg font-semibold text-gray-700">Published</h3>
             <p className="text-2xl font-bold text-green-600">
               {
-                articles.filter((article) => article.status === "published")
-                  .length
+                (articles || []).filter(
+                  (article) => article.status === "published",
+                ).length
               }
             </p>
           </div>
           <div className="rounded-lg bg-white p-4 shadow">
             <h3 className="text-lg font-semibold text-gray-700">Drafts</h3>
             <p className="text-2xl font-bold text-yellow-600">
-              {articles.filter((article) => article.status === "draft").length}
+              {
+                (articles || []).filter((article) => article.status === "draft")
+                  .length
+              }
             </p>
           </div>
           <div className="rounded-lg bg-white p-4 shadow">
             <h3 className="text-lg font-semibold text-gray-700">Featured</h3>
             <p className="text-2xl font-bold text-blue-600">
-              {articles.filter((article) => article.featured).length}
+              {(articles || []).filter((article) => article.featured).length}
             </p>
           </div>
         </div>
@@ -190,7 +199,7 @@ const ArticlesPage = () => {
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-secondary"></div>
             <p className="mt-2 text-gray-600">Loading articles...</p>
           </div>
-        ) : articles.length > 0 ? (
+        ) : articles && articles.length > 0 ? (
           <div className="w-[97%] text-center">
             <div className="overflow-x-auto">
               <table className="w-full rounded border border-gray-300 bg-white text-left">
@@ -259,12 +268,12 @@ const ArticlesPage = () => {
                         {new Date(article.createdAt).toLocaleDateString()}
                       </td>
                       <td className="space-x-2 border p-3">
-                        <Link
-                          href={`/article/${article.slug}`}
+                        <button
+                          onClick={() => openModal("view", article)}
                           className="text-blue-600 hover:underline"
                         >
                           View
-                        </Link>
+                        </button>
                         <button
                           onClick={() => openModal("edit", article)}
                           className="text-green-600 hover:underline"

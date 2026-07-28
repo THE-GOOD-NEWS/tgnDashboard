@@ -30,8 +30,15 @@ export default function LoginPage() {
       );
 
       if (response.status === 200) {
-        // Use router.push for client-side navigation
-        router.push("/");
+        const userRole = response.data?.user?.role;
+        if (userRole && typeof window !== "undefined") {
+          localStorage.setItem("userRole", userRole);
+        }
+        if (userRole === "guestWriter") {
+          router.push("/pages/articles");
+        } else {
+          router.push("/");
+        }
       }
     } catch (error: any) {
       setError(

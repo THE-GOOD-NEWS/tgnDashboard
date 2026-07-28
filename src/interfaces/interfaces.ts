@@ -8,7 +8,7 @@ export interface IUser {
   username: string;
   email: string;
   password: string;
-  role: "admin" | "moderator" | "customer";
+  role: "admin" | "moderator" | "customer" | "guestWriter";
   emailVerified?: boolean;
   firstName?: string;
   lastName?: string;

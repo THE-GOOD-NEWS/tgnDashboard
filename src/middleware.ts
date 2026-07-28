@@ -27,15 +27,30 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // If trying to access public route with token
-  if (isPublicRoute && token) {
-    return NextResponse.redirect(new URL('/', request.url));
-    console.log('Skipping redirect for testing, token:', token);
-    return NextResponse.next();  }
-
   // Protect homepage (/) if no token
   if (path === '/' && !token) {
     return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Immediate Edge redirection for guestWriter role
+  if (token) {
+    try {
+      const payloadSegment = token.split('.')[1];
+      if (payloadSegment) {
+        const decodedStr = Buffer.from(payloadSegment, 'base64').toString('utf8');
+        const payload = JSON.parse(decodedStr);
+        if (payload?.role === 'guestWriter' && !path.startsWith('/pages/articles') && !path.startsWith('/api/')) {
+          return NextResponse.redirect(new URL('/pages/articles', request.url));
+        }
+      }
+    } catch (e) {
+      // Ignore token parse error
+    }
+  }
+
+  // If trying to access public route with token
+  if (isPublicRoute && token) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   // Allow access to all other routes

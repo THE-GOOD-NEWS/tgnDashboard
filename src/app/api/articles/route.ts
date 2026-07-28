@@ -54,7 +54,19 @@ export async function GET(req: Request) {
       searchQuery.tags = { $in: [tag] };
     }
 
-    // Filter by author
+    // Filter by author if user is guestWriter
+    let token = getToken();
+    if (!token) {
+      const cookieHeader = req.headers.get("cookie") || "";
+      const match = cookieHeader.match(/(?:^|;\s*)token=([^;]+)/);
+      if (match) token = decodeURIComponent(match[1]);
+    }
+    if (token) {
+      const decoded: any = verifyToken(token);
+      if (decoded && decoded.role === "guestWriter" && decoded.id) {
+        searchQuery.author = new mongoose.Types.ObjectId(decoded.id as string);
+      }
+    }
 
     // Filter by featured
     if (featured !== null && featured !== undefined) {
@@ -129,9 +141,13 @@ export async function POST(req: Request) {
     }
 
     // Validate required fields: title and either content or blocks
-    // const hasContent = !!(data.content && typeof data.content === "string" && data.content.trim().length);
+    const hasContent = !!(
+      data.content &&
+      typeof data.content === "string" &&
+      data.content.trim().length > 0
+    );
     const hasBlocks = Array.isArray(data.blocks) && data.blocks.length > 0;
-    if (!data.title || !hasBlocks) {
+    if (!data.title || (!hasContent && !hasBlocks)) {
       return NextResponse.json(
         { error: "Title and content (rich text or blocks) are required" },
         { status: 400 },
@@ -142,10 +158,7 @@ export async function POST(req: Request) {
     if (data.author) {
       const authorExists = await UserModel.findById(data.author);
       if (!authorExists) {
-        return NextResponse.json(
-          { error: "Author not found" },
-          { status: 404 },
-        );
+        delete data.author;
       }
     }
 
