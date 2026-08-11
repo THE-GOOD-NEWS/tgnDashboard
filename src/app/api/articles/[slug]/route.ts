@@ -24,11 +24,13 @@ export async function GET(
       return NextResponse.json({ error: "Slug is required" }, { status: 400 });
     }
 
-    const article = await ArticleModel.findOne({ slug }).populate({
-      path: "categories",
-      model: "articleCategories",
-      select: "titleEn titleAr slug",
-    });
+    const article = await ArticleModel.findOne({ slug })
+      .populate({
+        path: "categories",
+        model: "articleCategories",
+        select: "titleEn titleAr slug",
+      })
+      .populate("author", "username firstName lastName email imageURL");
 
     if (!article) {
       return NextResponse.json({ error: "Article not found" }, { status: 404 });

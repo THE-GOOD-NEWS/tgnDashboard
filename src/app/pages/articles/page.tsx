@@ -13,14 +13,14 @@ interface Article {
   content: string;
   excerpt: string;
   featuredImage?: string;
-  // author: {
-  //   _id: string;
-  //   username: string;
-  //   firstName?: string;
-  //   lastName?: string;
-  //   email: string;
-  //   imageURL?: string;
-  // };
+  author?: {
+    _id: string;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    imageURL?: string;
+  } | string;
   status: "draft" | "published" | "archived";
   tags: string[];
   categories: string[];
@@ -107,11 +107,13 @@ const ArticlesPage = () => {
   };
 
   const truncateText = (text: string, maxLength: number) => {
+    if (!text) return "";
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + "...";
   };
 
   const stripHtml = (html: string) => {
+    if (!html) return "";
     return html.replace(/<[^>]*>/g, "");
   };
 
@@ -207,6 +209,7 @@ const ArticlesPage = () => {
                   <tr>
                     <th className="border p-3">#</th>
                     <th className="border p-3">Title</th>
+                    <th className="border p-3">Author</th>
                     <th className="border p-3">Status</th>
                     <th className="border p-3">Featured</th>
                     <th className="border p-3">Views</th>
@@ -230,22 +233,28 @@ const ArticlesPage = () => {
                           </div>
                         </div>
                       </td>
-                      {/* <td className="border p-3">
-                        <div className="flex items-center gap-2">
-                          {article.author.imageURL && (
-                            <img
-                              src={article.author.imageURL}
-                              alt={article.author.username}
-                              className="w-6 h-6 rounded-full"
-                            />
-                          )}
-                          <span>
-                            {article.author.firstName && article.author.lastName
-                              ? `${article.author.firstName} ${article.author.lastName}`
-                              : article.author.username}
-                          </span>
-                        </div>
-                      </td> */}
+                      <td className="border p-3">
+                        {article.author && typeof article.author === "object" ? (
+                          <div className="flex items-center gap-2">
+                            {article.author.imageURL && (
+                              <img
+                                src={article.author.imageURL}
+                                alt={article.author.username || "Author"}
+                                className="h-6 w-6 rounded-full object-cover"
+                              />
+                            )}
+                            <span>
+                              {article.author.firstName && article.author.lastName
+                                ? `${article.author.firstName} ${article.author.lastName}`
+                                : article.author.username || article.author.email || "Unknown"}
+                            </span>
+                          </div>
+                        ) : typeof article.author === "string" ? (
+                          <span className="text-gray-600">{article.author}</span>
+                        ) : (
+                          <span className="text-gray-400">N/A</span>
+                        )}
+                      </td>
                       <td className="border p-3">
                         <span
                           className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusBadge(article.status)}`}

@@ -78,7 +78,7 @@ export async function GET(req: Request) {
 
     // Get articles with population
     const articles = await ArticleModel.find(searchQuery)
-
+      .populate("author", "username firstName lastName email imageURL")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
