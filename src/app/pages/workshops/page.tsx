@@ -21,8 +21,9 @@ import {
   FaBan,
   FaDownload,
 } from "react-icons/fa";
-import { MdOutlineWorkspaces } from "react-icons/md";
+import { MdOutlineWorkspaces, MdQrCodeScanner } from "react-icons/md";
 import { HiOutlinePhoto } from "react-icons/hi2";
+import Link from "next/link";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -45,6 +46,9 @@ interface IAttendance {
   email: string;
   phone: string;
   instapayImage?: string;
+  checkInToken?: string;
+  checkedIn?: boolean;
+  checkedInAt?: string;
 }
 
 const AREA_OF_RESIDENCE_OPTIONS = [
@@ -74,6 +78,9 @@ interface IWorkshopAttendanceRequest {
   status: "pending" | "approved" | "rejected" |"archived";
   notes?: string;
   seen: boolean;
+  checkInToken?: string;
+  checkedIn?: boolean;
+  checkedInAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1087,13 +1094,22 @@ export default function WorkshopsPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => topTab === "packages" ? openAddPkg() : openAdd()}
-            className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:opacity-90 hover:scale-105 active:scale-95"
-          >
-            <FaPlus />
-            {topTab === "packages" ? "New Package" : "New Workshop"}
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/pages/workshops/scanner"
+              className="flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-purple-700 hover:scale-105 active:scale-95"
+            >
+              <MdQrCodeScanner size={18} />
+              QR Check-in Scanner
+            </Link>
+            <button
+              onClick={() => topTab === "packages" ? openAddPkg() : openAdd()}
+              className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:opacity-90 hover:scale-105 active:scale-95"
+            >
+              <FaPlus />
+              {topTab === "packages" ? "New Package" : "New Workshop"}
+            </button>
+          </div>
         </div>
 
         <div className="mb-8 flex overflow-x-auto no-scrollbar border-b border-stroke dark:border-strokedark">
@@ -1542,9 +1558,22 @@ export default function WorkshopsPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                           <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase shadow-sm ${statusColors[req.status]}`}>
-                            {req.status}
-                          </span>
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase shadow-sm ${statusColors[req.status]}`}>
+                              {req.status}
+                            </span>
+                            {req.status === "approved" && (
+                              req.checkedIn ? (
+                                <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                  <FaCheck size={8} /> Checked In
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-gray-400">
+                                  Not Checked In
+                                </span>
+                              )
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-[10px] text-gray-400 whitespace-nowrap">
                           {fmt(req.createdAt)}
@@ -2607,9 +2636,25 @@ export default function WorkshopsPage() {
                               <div className="min-w-0 pr-16 flex-1">
                                 <div className="flex items-center gap-2">
                                   <p className="text-sm font-bold truncate text-black dark:text-white">{person.name}</p>
+                                  {person.checkedIn ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-extrabold uppercase text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                      <FaCheck size={8} /> Checked In
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold text-gray-500 dark:bg-meta-4 dark:text-gray-400">
+                                      Not Checked In
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="text-[10px] text-gray-500 truncate">{person.email}</p>
-                                <p className="text-[10px] text-gray-400 truncate">{person.phone}</p>
+                                <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                                  <span>{person.phone}</span>
+                                  {person.checkInToken && (
+                                    <span className="font-mono text-[9px] bg-gray-100 dark:bg-meta-4 px-1.5 py-0.2 rounded text-gray-600 dark:text-gray-300">
+                                      {person.checkInToken}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
                               {!isReadOnly && (

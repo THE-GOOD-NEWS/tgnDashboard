@@ -12,9 +12,15 @@ export interface ISession {
 
 // ─── Attendance Schema ────────────────────────────────────────────────────────
 export interface IAttendance {
+  _id?: mongoose.Types.ObjectId;
+  requestId?: mongoose.Types.ObjectId | string;
   name: string;
   email: string;
   phone: string;
+  instapayImage?: string;
+  checkInToken?: string;
+  checkedIn?: boolean;
+  checkedInAt?: Date;
 }
 
 // ─── Workshop document ────────────────────────────────────────────────────────
@@ -60,9 +66,14 @@ const SessionSchema = new Schema<ISession>(
 // ─── Attendance Schema ────────────────────────────────────────────────────────
 const AttendanceSchema = new Schema<IAttendance>(
   {
+    requestId: { type: Schema.Types.ObjectId, ref: "workshopAttendanceRequests" },
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
+    instapayImage: { type: String },
+    checkInToken: { type: String },
+    checkedIn: { type: Boolean, default: false },
+    checkedInAt: { type: Date },
   },
   { _id: true },
 );

@@ -4,6 +4,7 @@ import { ConnectDB } from "@/config/db";
 import { NextResponse } from "next/server";
 import { sendMail } from "@/app/lib/email";
 import { WorkshopConfirmationMail } from "@/app/emails/WorkshopConfirmationMail";
+import crypto from "crypto";
 
 const loadDB = async () => {
   await ConnectDB();
@@ -42,6 +43,11 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
     // Handle attendance list synchronization if status changes
     if (newStatus === "approved" && oldStatus !== "approved") {
+      const checkInToken =
+        request.checkInToken ||
+        `TGN-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+      updateData.checkInToken = checkInToken;
+
       const workshop = await WorkshopModel.findById(request.workshopId);
       if (workshop) {
         await WorkshopModel.findByIdAndUpdate(request.workshopId, {
@@ -52,6 +58,8 @@ export async function PATCH(req: Request, { params }: RouteContext) {
               email: updateData.email || request.email,
               phone: updateData.phone || request.phone,
               instapayImage: updateData.instapayImage || request.instapayImage,
+              checkInToken: checkInToken,
+              checkedIn: false,
             },
           },
         });
@@ -62,10 +70,15 @@ export async function PATCH(req: Request, { params }: RouteContext) {
           const mailBody = WorkshopConfirmationMail({
             participantName: updateData.name || request.name,
             workshopTitle: workshop.title,
-            startDate: workshop.startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+            startDate: workshop.startDate.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }),
             time: firstSession?.startTime || "TBD",
             location: workshop.location?.altText || "Our Studio",
             rawDate: workshop.startDate,
+            checkInToken: checkInToken,
           });
 
           await sendMail({

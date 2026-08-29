@@ -26,6 +26,9 @@ export interface IWorkshopAttendanceRequest extends Document {
   status?: "pending" | "approved" | "rejected" | "archived";
   notes?: string;
   seen: boolean;
+  checkInToken?: string;
+  checkedIn?: boolean;
+  checkedInAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,6 +71,9 @@ const WorkshopAttendanceRequestSchema = new Schema<IWorkshopAttendanceRequest>(
     },
     notes: { type: String, trim: true },
     seen: { type: Boolean, default: false },
+    checkInToken: { type: String, index: true, sparse: true },
+    checkedIn: { type: Boolean, default: false },
+    checkedInAt: { type: Date },
   },
   {
     timestamps: true,

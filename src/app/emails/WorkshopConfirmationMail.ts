@@ -5,6 +5,7 @@ interface IMailData {
   time: string;      // e.g. "15:00"
   location: string;
   rawDate: Date;     // For the calendar link
+  checkInToken?: string;
 }
 
 export const WorkshopConfirmationMail = ({
@@ -13,7 +14,8 @@ export const WorkshopConfirmationMail = ({
   startDate,
   time,
   location,
-  rawDate
+  rawDate,
+  checkInToken,
 }: IMailData) => {
   // Helper to generate Google Calendar link
   const encodedTitle = encodeURIComponent(workshopTitle);
@@ -33,6 +35,17 @@ export const WorkshopConfirmationMail = ({
   const endStamp = formatCal(endDateTime);
 
   const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedTitle}&dates=${startStamp}/${endStamp}&location=${encodedLocation}`;
+
+  // QR Code Generation with High Error Correction (ecc=H) for glare & screen brightness resistance
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://thegoodnews-me.com";
+  const qrCheckInUrl = checkInToken
+    ? `${baseUrl}/api/workshop-checkin?token=${encodeURIComponent(checkInToken)}`
+    : "";
+  const qrCodeImageUrl = checkInToken
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+        qrCheckInUrl
+      )}&margin=16&ecc=H&color=000000&bgcolor=ffffff&format=png`
+    : null;
 
   return `<!DOCTYPE html>
 <html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en">
@@ -220,6 +233,31 @@ export const WorkshopConfirmationMail = ({
 																				<p style="margin: 0; margin-bottom: 16px;">Here are the details of your workshop:</p>
 																				<p style="margin: 0; margin-bottom: 16px;"><strong>Program:</strong> ${workshopTitle}</p>
                                         <p style="margin: 0; margin-bottom: 16px;"><strong>Start Date:</strong> ${startDate}<br><strong>Time:</strong> ${time}<br><strong>Location:</strong> ${location}</p>
+																				
+																				${
+                                          qrCodeImageUrl
+                                            ? `
+																				<!-- QR Code Pass Section -->
+																				<div style="background-color: #ffffff; border: 2px dashed #ff99cc; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0 20px 0;">
+																					<div style="display: inline-block; padding: 6px 14px; background-color: #fff0f6; border-radius: 20px; color: #d63384; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
+																						🎟️ Workshop Entry Pass / Check-in QR
+																					</div>
+																					<div style="margin: 8px auto 14px auto; text-align: center;">
+																						<img src="${qrCodeImageUrl}" alt="Workshop Check-in QR Code" width="180" height="180" style="display: block; margin: 0 auto; width: 180px; height: 180px; border-radius: 8px; border: 1px solid #eeeeee;" />
+																					</div>
+																					${
+                                            checkInToken
+                                              ? `<p style="margin: 0 0 6px 0; font-family: monospace; font-size: 13px; color: #555555; letter-spacing: 2px;">PASS CODE: <strong>${checkInToken}</strong></p>`
+                                              : ""
+                                          }
+																					<p style="margin: 0; font-size: 13px; color: #666666; line-height: 1.4;">
+																						Please present this QR code to the instructor or reception upon your arrival at the workshop to check in and activate your attendance.
+																					</p>
+																				</div>
+																				`
+                                            : ""
+                                        }
+
 																				<p style="margin: 0; margin-bottom: 16px;">Please make sure to <strong>arrive on time and do not be late</strong>, so you can get the full benefit of the workshop.</p>
 																				<p style="margin: 0; margin-bottom: 16px;">If you have any questions, feel free to contact us.</p>
 																				<p style="margin: 0; margin-bottom: 16px;">We look forward to seeing you!</p>
