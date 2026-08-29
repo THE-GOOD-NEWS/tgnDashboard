@@ -1,14 +1,29 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+export const AREA_OF_RESIDENCE_OPTIONS = [
+  "Nasr City",
+  "Heliopolis",
+  "New Cairo",
+  "Madinaty",
+  "El-Shorouk",
+  "Maadi",
+  "Giza (ElMohandiseen, Agouza, Zamalek..etc)",
+  "6th of October",
+] as const;
+
+export type AreaOfResidence = (typeof AREA_OF_RESIDENCE_OPTIONS)[number];
+
 export interface IWorkshopAttendanceRequest extends Document {
   workshopId: mongoose.Types.ObjectId;
   name: string;
   phone: string;
   email: string;
   howDidYouKnow: "TGN" | "Instructor page" | "Ads" | "Friends and Family";
-  type: "available" | "waitlist" ;
+  areaOfResidence?: string;
+  age?: number;
+  type: "available" | "waitlist";
   instapayImage: string;
-  status?: "pending" | "approved" | "rejected" |"archived";
+  status?: "pending" | "approved" | "rejected" | "archived";
   notes?: string;
   seen: boolean;
   createdAt: Date;
@@ -30,6 +45,16 @@ const WorkshopAttendanceRequestSchema = new Schema<IWorkshopAttendanceRequest>(
       enum: ["TGN", "Instructor page", "Ads", "Friends and Family"],
       required: true,
     },
+    areaOfResidence: {
+      type: String,
+      enum: AREA_OF_RESIDENCE_OPTIONS,
+      required: false,
+    },
+    age: {
+      type: Number,
+      required: false,
+      min: 0,
+    },
     type: {
       type: String,
       enum: ["available", "waitlist"],
@@ -38,8 +63,8 @@ const WorkshopAttendanceRequestSchema = new Schema<IWorkshopAttendanceRequest>(
     instapayImage: { type: String, required: false },
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected","archived"],
-      required:false,
+      enum: ["pending", "approved", "rejected", "archived"],
+      required: false,
     },
     notes: { type: String, trim: true },
     seen: { type: Boolean, default: false },

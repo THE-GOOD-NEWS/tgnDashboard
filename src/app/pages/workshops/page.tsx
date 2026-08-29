@@ -47,6 +47,19 @@ interface IAttendance {
   instapayImage?: string;
 }
 
+const AREA_OF_RESIDENCE_OPTIONS = [
+  "Nasr City",
+  "Heliopolis",
+  "New Cairo",
+  "Madinaty",
+  "El-Shorouk",
+  "Maadi",
+  "Giza (ElMohandiseen, Agouza, Zamalek..etc)",
+  "6th of October",
+] as const;
+
+type AreaOfResidence = (typeof AREA_OF_RESIDENCE_OPTIONS)[number];
+
 interface IWorkshopAttendanceRequest {
   _id: string;
   workshopId: string | { _id: string; title: string };
@@ -54,6 +67,8 @@ interface IWorkshopAttendanceRequest {
   phone: string;
   email: string;
   howDidYouKnow: "TGN" | "Instructor page" | "Ads" | "Friends and Family";
+  areaOfResidence?: string;
+  age?: number;
   type: "available" | "waitlist" ;
   instapayImage?: string;
   status: "pending" | "approved" | "rejected" |"archived";
@@ -443,6 +458,7 @@ export default function WorkshopsPage() {
   const [allWorkshops, setAllWorkshops] = useState<IWorkshop[]>([]);
   const [selectedWorkshop, setSelectedWorkshop] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedArea, setSelectedArea] = useState<string>("");
   const [workshopStatus, setWorkshopStatus] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -644,12 +660,15 @@ export default function WorkshopsPage() {
     const filteredRequests = allRequests.filter((req) => {
       const matchWorkshop = !selectedWorkshop || (typeof req.workshopId === "object" ? req.workshopId._id : req.workshopId) === selectedWorkshop;
       const matchStatus = !selectedStatus || req.status === selectedStatus;
-      return matchWorkshop && matchStatus;
+      const matchArea = !selectedArea || req.areaOfResidence === selectedArea;
+      return matchWorkshop && matchStatus && matchArea;
     });
 
     const excelData = filteredRequests.map((req) => ({
       "Workshop Title": typeof req.workshopId === "object" ? req.workshopId.title : "N/A",
       "Requester Name": req.name,
+      "Age": req.age !== undefined && req.age !== null ? req.age : "",
+      "Area of Residence": req.areaOfResidence || "",
       "Email": req.email,
       "Phone": req.phone,
       "How Did You Know": req.howDidYouKnow,
@@ -1414,6 +1433,22 @@ export default function WorkshopsPage() {
                     <option value="rejected">Rejected</option>
                     <option value="archived">Archived</option>
                   </select>
+
+                  <select
+                    value={selectedArea}
+                    onChange={(e) => {
+                      setSelectedArea(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full max-w-[200px] rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white sm:ml-4 mt-4 sm:mt-0"
+                  >
+                    <option value="">All Areas</option>
+                    {AREA_OF_RESIDENCE_OPTIONS.map((area) => (
+                      <option key={area} value={area}>
+                        {area}
+                      </option>
+                    ))}
+                  </select>
                   
                   <button
                     onClick={exportToExcel}
@@ -1441,7 +1476,8 @@ export default function WorkshopsPage() {
                       .filter((req) => {
                         const matchWorkshop = !selectedWorkshop || (typeof req.workshopId === "object" ? req.workshopId._id : req.workshopId) === selectedWorkshop;
                         const matchStatus = !selectedStatus || req.status === selectedStatus;
-                        return matchWorkshop && matchStatus;
+                        const matchArea = !selectedArea || req.areaOfResidence === selectedArea;
+                        return matchWorkshop && matchStatus && matchArea;
                       })
                       .map((req) => (
                       <tr key={req._id} className="hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors">
@@ -1457,9 +1493,22 @@ export default function WorkshopsPage() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="font-bold text-black dark:text-white">{req.name}</div>
+                          <div className="font-bold text-black dark:text-white flex items-center gap-1.5 flex-wrap">
+                            <span>{req.name}</span>
+                            {req.age !== undefined && req.age !== null && (
+                              <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-meta-4 px-1.5 py-0.5 rounded">
+                                {req.age} yrs
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[10px] text-gray-400">{req.email}</div>
                           <div className="text-[10px] text-gray-400">{req.phone}</div>
+                          {req.areaOfResidence && (
+                            <div className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
+                              <FaMapMarkerAlt size={9} />
+                              <span>{req.areaOfResidence}</span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
@@ -2407,10 +2456,15 @@ export default function WorkshopsPage() {
                                   )}
                                   
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                                       <p className="font-bold text-black dark:text-white text-base tracking-wide truncate">
                                         {req.name}
                                       </p>
+                                      {req.age !== undefined && req.age !== null && (
+                                        <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-meta-4 px-1.5 py-0.5 rounded border border-stroke dark:border-strokedark">
+                                          {req.age} yrs
+                                        </span>
+                                      )}
                                       <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter shadow-sm ${
                                         req.type === 'waitlist' ? 'bg-orange-100 text-orange-600 border border-orange-200' : 
                                         'bg-blue-100 text-blue-600 border border-blue-200'}`}>
@@ -2424,6 +2478,12 @@ export default function WorkshopsPage() {
                                       <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2">
                                         <span className="opacity-70">Phone:</span> {req.phone}
                                       </p>
+                                      {req.areaOfResidence && (
+                                        <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                                          <FaMapMarkerAlt size={11} className="shrink-0" />
+                                          <span className="opacity-80">Area:</span> {req.areaOfResidence}
+                                        </p>
+                                      )}
                                       <p className="text-[11px] font-medium text-gray-500 flex items-center gap-2">
                                         <span className="opacity-70 italic">Source:</span> {req.howDidYouKnow}
                                       </p>
@@ -2656,6 +2716,42 @@ export default function WorkshopsPage() {
                         onChange={(e) => setCurrentReq({ ...currentReq, phone: e.target.value })}
                         className={inputCls(false)}
                       />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Field label="Age">
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="e.g. 25"
+                        value={currentReq.age !== undefined && currentReq.age !== null ? currentReq.age : ""}
+                        onChange={(e) =>
+                          setCurrentReq({
+                            ...currentReq,
+                            age: e.target.value === "" ? undefined : Number(e.target.value),
+                          })
+                        }
+                        className={inputCls(false)}
+                      />
+                    </Field>
+                    <Field label="Area of Residence">
+                      <select
+                        value={currentReq.areaOfResidence || ""}
+                        onChange={(e) =>
+                          setCurrentReq({
+                            ...currentReq,
+                            areaOfResidence: e.target.value || undefined,
+                          })
+                        }
+                        className={inputCls(false)}
+                      >
+                        <option value="">Select Area of Residence</option>
+                        {AREA_OF_RESIDENCE_OPTIONS.map((area) => (
+                          <option key={area} value={area}>
+                            {area}
+                          </option>
+                        ))}
+                      </select>
                     </Field>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
