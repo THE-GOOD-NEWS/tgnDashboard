@@ -6,6 +6,7 @@ interface IMailData {
   location: string;
   rawDate: Date;     // For the calendar link
   checkInToken?: string;
+  hasQrCode?: boolean;
 }
 
 export const WorkshopConfirmationMail = ({
@@ -16,6 +17,7 @@ export const WorkshopConfirmationMail = ({
   location,
   rawDate,
   checkInToken,
+  hasQrCode = true,
 }: IMailData) => {
   // Helper to generate Google Calendar link
   const encodedTitle = encodeURIComponent(workshopTitle);
@@ -36,13 +38,19 @@ export const WorkshopConfirmationMail = ({
 
   const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedTitle}&dates=${startStamp}/${endStamp}&location=${encodedLocation}`;
 
-  // Branded Ticket Image with QR Code embedded inside template
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://thegoodnews-me.com";
-  const ticketImageUrl = checkInToken
-    ? `${baseUrl}/api/workshop-ticket?token=${encodeURIComponent(checkInToken)}`
+  // Branded Ticket Image with QR Code embedded inside template (only if workshop has QR enabled)
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.baseUrl ||
+    "https://dashboard.thegoodnews-me.com"
+  ).replace(/\/$/, "");
+  const showQr = hasQrCode !== false && !!checkInToken;
+  const ticketImageUrl = showQr
+    ? `${baseUrl}/api/workshop-ticket?token=${encodeURIComponent(checkInToken!)}`
     : null;
-  const downloadTicketUrl = checkInToken
-    ? `${baseUrl}/api/workshop-ticket?token=${encodeURIComponent(checkInToken)}&download=1`
+  const downloadTicketUrl = showQr
+    ? `${baseUrl}/api/workshop-ticket?token=${encodeURIComponent(checkInToken!)}&download=1`
     : null;
 
   return `<!DOCTYPE html>

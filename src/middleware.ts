@@ -7,12 +7,14 @@ export function middleware(request: NextRequest) {
   const publicRoutes = ["/login", "/create-admin"];
   const path = request.nextUrl.pathname;
 
-  // Allow access to static files and API routes
+  // Allow access to static files and public API routes
   if (
     path.startsWith('/_next') ||
     path.startsWith('/static') ||
     path.startsWith('/images') ||
     path.startsWith('/api/auth') ||
+    path.startsWith('/api/workshop-ticket') ||
+    path.startsWith('/api/workshop-checkin') ||
     path === '/favicon.ico'
   ) {
     return NextResponse.next();

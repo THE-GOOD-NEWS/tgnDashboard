@@ -7,6 +7,7 @@ interface IGenerateTicketOptions {
   token: string;
   name?: string;
   workshopTitle?: string;
+  qrTemplateImage?: string;
   date?: string;
   time?: string;
   location?: string;
@@ -37,9 +38,19 @@ function truncate(str: string, maxLength: number): string {
  * Template dimensions: 1080 x 1350 px.
  */
 export async function generateWorkshopTicket(options: IGenerateTicketOptions): Promise<Buffer> {
-  const { token, name = "Workshop Attendee", workshopTitle = "Workshop Program" } = options;
+  const {
+    token,
+    name = "Workshop Attendee",
+    workshopTitle = "Workshop Program",
+    qrTemplateImage,
+  } = options;
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://thegoodnews-me.com";
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.baseUrl ||
+    "https://dashboard.thegoodnews-me.com"
+  ).replace(/\/$/, "");
   const checkInUrl = `${baseUrl}/api/workshop-checkin?token=${encodeURIComponent(token)}`;
 
   // Generate high quality QR code buffer
@@ -85,15 +96,56 @@ export async function generateWorkshopTicket(options: IGenerateTicketOptions): P
     </svg>
   `);
 
-  // Path to template
-  const templatePath = path.join(process.cwd(), "public", "images", "qr", "QR code template.png");
+  // Resolve template buffer (custom uploaded image or default template)
+  const defaultTemplatePath = path.join(
+    process.cwd(),
+    "public",
+    "images",
+    "qr",
+    "QR code template.png"
+  );
 
-  if (!fs.existsSync(templatePath)) {
-    throw new Error(`QR code template image not found at ${templatePath}`);
+  let templateBuffer: Buffer;
+
+  if (
+    qrTemplateImage &&
+    (qrTemplateImage.startsWith("http://") || qrTemplateImage.startsWith("https://"))
+  ) {
+    try {
+      const res = await fetch(qrTemplateImage);
+      if (res.ok) {
+        const arrayBuf = await res.arrayBuffer();
+        templateBuffer = await sharp(Buffer.from(arrayBuf))
+          .resize(1080, 1350, { fit: "cover", position: "center" })
+          .toBuffer();
+      } else {
+        templateBuffer = fs.readFileSync(defaultTemplatePath);
+      }
+    } catch {
+      templateBuffer = fs.readFileSync(defaultTemplatePath);
+    }
+  } else if (qrTemplateImage && fs.existsSync(qrTemplateImage)) {
+    templateBuffer = await sharp(qrTemplateImage)
+      .resize(1080, 1350, { fit: "cover", position: "center" })
+      .toBuffer();
+  } else if (fs.existsSync(defaultTemplatePath)) {
+    templateBuffer = fs.readFileSync(defaultTemplatePath);
+  } else {
+    // Solid background fallback
+    templateBuffer = await sharp({
+      create: {
+        width: 1080,
+        height: 1350,
+        channels: 3,
+        background: { r: 251, g: 243, b: 224 },
+      },
+    })
+      .png()
+      .toBuffer();
   }
 
-  // Composite QR code and text overlay directly onto the updated template
-  const finalImageBuffer = await sharp(templatePath)
+  // Composite QR code and text overlay directly onto the template
+  const finalImageBuffer = await sharp(templateBuffer)
     .composite([
       { input: textSvg, top: 0, left: 0 },
       { input: qrBuffer, top: 490, left: 350 },

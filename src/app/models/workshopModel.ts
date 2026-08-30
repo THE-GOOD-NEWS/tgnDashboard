@@ -44,6 +44,8 @@ export interface IWorkshop extends Document {
   attendance: IAttendance[];
   availableSessions: ISession[];
   visits: number;
+  hasQrCode?: boolean;
+  qrTemplateImage?: string;
   notes?: string;
   status: "active" | "draft" | "archived" | "coming soon";
   createdAt: Date;
@@ -107,6 +109,8 @@ const WorkshopSchema = new Schema<IWorkshop>(
     availableSessions: { type: [SessionSchema], default: [] },
     notes: { type: String },
     visits: { type: Number, default: 0 },
+    hasQrCode: { type: Boolean, default: true },
+    qrTemplateImage: { type: String, trim: true },
     status: {
       type: String,
       enum: ["active", "draft", "archived", "coming soon"],

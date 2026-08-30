@@ -79,6 +79,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
             location: workshop.location?.altText || "Our Studio",
             rawDate: workshop.startDate,
             checkInToken: checkInToken,
+            hasQrCode: workshop.hasQrCode !== false,
           });
 
           await sendMail({

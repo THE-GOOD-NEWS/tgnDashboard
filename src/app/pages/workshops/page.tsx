@@ -134,6 +134,8 @@ interface IWorkshop {
   attendance: IAttendance[];
   availableSessions: ISession[];
   visits: number;
+  hasQrCode?: boolean;
+  qrTemplateImage?: string;
   status: "active" | "draft" | "archived" | "coming soon";
   notes?: string;
   createdAt: string;
@@ -141,7 +143,7 @@ interface IWorkshop {
 }
 
 type ModalMode = "add" | "edit" | "view" | null;
-type ActiveTab = "details" | "sessions" | "attendance" | "images";
+type ActiveTab = "details" | "images" | "sessions" | "pass" | "attendance";
 type PageTab = "workshops" | "requests" | "pkg-requests" | "analytics" | "packages";
 
 // ─── Empty templates ──────────────────────────────────────────────────────────
@@ -259,6 +261,8 @@ const emptyWorkshop = (): Partial<IWorkshop> => ({
   availableSessions: [],
   notes: "",
   visits: 0,
+  hasQrCode: true,
+  qrTemplateImage: "",
   status: "active",
 });
 
@@ -1971,7 +1975,7 @@ export default function WorkshopsPage() {
 
               {/* Tab bar */}
               <div className="flex border-b border-stroke dark:border-strokedark shrink-0 overflow-x-auto no-scrollbar">
-                {(["details", "images", "sessions", "attendance"] as ActiveTab[]).map(
+                {(["details", "images", "sessions", "pass", "attendance"] as ActiveTab[]).map(
                   (tab) => (
                     <button
                       key={tab}
@@ -1983,7 +1987,7 @@ export default function WorkshopsPage() {
                             : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50 dark:hover:text-white dark:hover:bg-meta-4"
                         }`}
                     >
-                      {tab === "attendance" ? "Requests" : tab}
+                      {tab === "pass" ? "QR Pass" : tab === "attendance" ? "Requests" : tab}
                       {tab === "images" && current.images && current.images.length > 0 && (
                         <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${activeTab === tab ? "bg-primary text-white" : "bg-gray-200 text-gray-600 dark:bg-meta-4 dark:text-gray-300"}`}>
                           {current.images.length}
@@ -1992,6 +1996,15 @@ export default function WorkshopsPage() {
                       {tab === "sessions" && current.availableSessions && current.availableSessions.length > 0 && (
                         <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${activeTab === tab ? "bg-primary text-white" : "bg-gray-200 text-gray-600 dark:bg-meta-4 dark:text-gray-300"}`}>
                           {current.availableSessions.length}
+                        </span>
+                      )}
+                      {tab === "pass" && (
+                        <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          current.hasQrCode !== false
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                            : "bg-gray-200 text-gray-500 dark:bg-meta-4 dark:text-gray-400"
+                        }`}>
+                          {current.hasQrCode !== false ? "ON" : "OFF"}
                         </span>
                       )}
                       {tab === "attendance" && requests.some(r => r.status === "pending") && (
@@ -2450,6 +2463,129 @@ export default function WorkshopsPage() {
                       </div>
                     )}
                   </>
+                )}
+
+                {/* ────────────────── TAB: QR Pass Template ────────────────── */}
+                {activeTab === "pass" && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-stroke bg-gray-50/50 dark:border-strokedark dark:bg-meta-4/30">
+                      <div>
+                        <h4 className="text-base font-bold text-black dark:text-white flex items-center gap-2">
+                          <MdQrCodeScanner className="text-primary text-xl" />
+                          QR Code Attendance & Entry Pass
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-1 max-w-lg">
+                          When enabled, approved attendees receive a branded entry pass with a unique QR code in their confirmation email. Reception staff can scan this pass to verify attendance.
+                        </p>
+                      </div>
+
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={current.hasQrCode !== false}
+                          disabled={isReadOnly}
+                          onChange={(e) => setField("hasQrCode", e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-meta-4 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                        <span className="ml-3 text-xs font-bold text-gray-700 dark:text-gray-300">
+                          {current.hasQrCode !== false ? "Enabled" : "Disabled"}
+                        </span>
+                      </label>
+                    </div>
+
+                    {current.hasQrCode !== false ? (
+                      <div className="space-y-6">
+                        <div className="rounded-2xl border border-stroke p-6 dark:border-strokedark dark:bg-boxdark">
+                          <SectionTitle noPad>Branded Ticket Template Image</SectionTitle>
+                          <p className="text-xs text-gray-500 mt-1 mb-4">
+                            Upload a custom vertical poster image (recommended <strong>1080 x 1350 px</strong>). The attendee&apos;s high-resolution QR code, name, workshop title, and entry code will be automatically composited onto it.
+                          </p>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                            {/* Upload area */}
+                            <div>
+                              {!isReadOnly && (
+                                <CldUploadWidget
+                                  uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "workshops"}
+                                  options={{ multiple: false }}
+                                  onSuccess={(result: any) => {
+                                    if (result?.info?.secure_url) {
+                                      setField("qrTemplateImage", result.info.secure_url);
+                                    }
+                                  }}
+                                >
+                                  {({ open }) => (
+                                    <button
+                                      type="button"
+                                      onClick={() => open()}
+                                      className="w-full rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-8 text-center text-sm font-semibold text-primary transition hover:bg-primary/10 dark:border-strokedark dark:text-white"
+                                    >
+                                      <HiOutlinePhoto size={36} className="mx-auto mb-2 opacity-70" />
+                                      {current.qrTemplateImage ? "Click to Replace Custom Template" : "Click to Upload Custom Template"}
+                                      <p className="text-[11px] text-gray-400 font-normal mt-1">PNG, JPG, or WEBP (1080 x 1350 px)</p>
+                                    </button>
+                                  )}
+                                </CldUploadWidget>
+                              )}
+
+                              {current.qrTemplateImage && !isReadOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() => setField("qrTemplateImage", "")}
+                                  className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-bold text-red-600 hover:bg-red-100 transition dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-300"
+                                >
+                                  Reset to Default Template
+                                </button>
+                              )}
+
+                              <div className="mt-4 rounded-xl bg-blue-50/70 p-4 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 text-xs text-blue-800 dark:text-blue-200 space-y-1.5">
+                                <p className="font-bold flex items-center gap-1.5">
+                                  💡 Template Layout Guide:
+                                </p>
+                                <ul className="list-disc list-inside space-y-1 opacity-90 pl-1 text-[11px]">
+                                  <li><strong>Top Area (0–460px)</strong>: Place your brand logos & header graphics.</li>
+                                  <li><strong>Center Area (470–900px)</strong>: Keep clear for the QR code card frame.</li>
+                                  <li><strong>Bottom Area (920–1180px)</strong>: Keep clear for attendee name & pass code.</li>
+                                </ul>
+                              </div>
+                            </div>
+
+                            {/* Preview area */}
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                  {current.qrTemplateImage ? "Custom Template Preview" : "Default Template Preview"}
+                                </span>
+                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                  current.qrTemplateImage ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
+                                }`}>
+                                  {current.qrTemplateImage ? "Custom Active" : "Default Brand"}
+                                </span>
+                              </div>
+
+                              <div className="relative aspect-[4/5] max-w-[280px] mx-auto rounded-2xl overflow-hidden border border-stroke shadow-md dark:border-strokedark bg-gray-50">
+                                <img
+                                  src={current.qrTemplateImage || "/images/qr/QR code template.png"}
+                                  alt="QR Ticket Template"
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center dark:border-strokedark">
+                        <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                          QR Code entry passes are disabled for this workshop.
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Attendees will receive standard confirmation emails without QR tickets.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* ────────────────── TAB: Attendance Requests ────────────────── */}

@@ -23,8 +23,9 @@ export async function GET(req: NextRequest) {
     // Look up attendee and workshop details if available
     let attendeeName = searchParams.get("name") || "";
     let workshopTitle = searchParams.get("workshop") || "";
+    let qrTemplateImage = searchParams.get("qrTemplateImage") || "";
 
-    if (!attendeeName || !workshopTitle) {
+    if (!attendeeName || !workshopTitle || !qrTemplateImage) {
       try {
         // Try finding from WorkshopAttendanceRequestModel
         const request = await WorkshopAttendanceRequestModel.findOne({
@@ -40,6 +41,7 @@ export async function GET(req: NextRequest) {
             const ws = await WorkshopModel.findById(request.workshopId);
             if (ws) {
               workshopTitle = ws.title || workshopTitle;
+              if (ws.qrTemplateImage) qrTemplateImage = ws.qrTemplateImage;
             }
           }
         } else {
@@ -50,6 +52,7 @@ export async function GET(req: NextRequest) {
 
           if (ws) {
             workshopTitle = ws.title || workshopTitle;
+            if (ws.qrTemplateImage) qrTemplateImage = ws.qrTemplateImage;
             const att = ws.attendance?.find(
               (a: any) =>
                 a.checkInToken &&
@@ -70,6 +73,7 @@ export async function GET(req: NextRequest) {
       token: cleanToken,
       name: attendeeName || "Workshop Attendee",
       workshopTitle: workshopTitle || "Workshop Entry Pass",
+      qrTemplateImage: qrTemplateImage || undefined,
     });
 
     const headers: Record<string, string> = {
@@ -77,6 +81,9 @@ export async function GET(req: NextRequest) {
       "Cache-Control": "no-cache, no-store, must-revalidate",
       "Pragma": "no-cache",
       "Expires": "0",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
     };
 
     if (isDownload) {
@@ -94,7 +101,23 @@ export async function GET(req: NextRequest) {
     console.error("Error generating workshop ticket:", error);
     return NextResponse.json(
       { error: error?.message || "Failed to generate workshop pass" },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      }
     );
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
 }
