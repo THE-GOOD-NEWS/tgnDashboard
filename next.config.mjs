@@ -30,6 +30,10 @@ const nextConfig = {
         "./src/assets/fonts/**/*",
         "./public/images/qr/**/*",
       ],
+      "/api/workshop-attendance-requests/*": [
+        "./src/assets/fonts/**/*",
+        "./public/images/qr/**/*",
+      ],
     },
   },
 };

@@ -2,6 +2,7 @@ import sharp from "sharp";
 import QRCode from "qrcode";
 import path from "path";
 import fs from "fs";
+import os from "os";
 
 interface IGenerateTicketOptions {
   token: string;
@@ -34,6 +35,52 @@ function truncate(str: string, maxLength: number): string {
 }
 
 /**
+ * Registers the bundled Inter font with fontconfig so librsvg can find it.
+ * Creates a custom fonts.conf in /tmp and sets FONTCONFIG_FILE.
+ */
+function ensureFontsRegistered(): void {
+  const fontsDir = path.join(process.cwd(), "src", "assets", "fonts");
+  const tmpDir = path.join(os.tmpdir(), "tgn-fontconfig");
+  const cacheDir = path.join(tmpDir, "cache");
+  const confPath = path.join(tmpDir, "fonts.conf");
+
+  // Only write once per cold start
+  if (process.env.FONTCONFIG_FILE === confPath && fs.existsSync(confPath)) {
+    return;
+  }
+
+  fs.mkdirSync(tmpDir, { recursive: true });
+  fs.mkdirSync(cacheDir, { recursive: true });
+
+  // Fontconfig configuration that includes system fonts + our bundled fonts
+  const fontsConf = `<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <!-- Include system defaults if available -->
+  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>
+
+  <!-- Our bundled fonts directory -->
+  <dir>${fontsDir}</dir>
+
+  <!-- Writable cache directory -->
+  <cachedir>${cacheDir}</cachedir>
+
+  <!-- Map generic family names to Inter as fallback -->
+  <alias>
+    <family>sans-serif</family>
+    <prefer><family>Inter</family></prefer>
+  </alias>
+  <alias>
+    <family>sans</family>
+    <prefer><family>Inter</family></prefer>
+  </alias>
+</fontconfig>`;
+
+  fs.writeFileSync(confPath, fontsConf);
+  process.env.FONTCONFIG_FILE = confPath;
+}
+
+/**
  * Composites attendee QR code and details onto the branded template image.
  * Template dimensions: 1080 x 1350 px.
  */
@@ -44,6 +91,9 @@ export async function generateWorkshopTicket(options: IGenerateTicketOptions): P
     workshopTitle = "Workshop Program",
     qrTemplateImage,
   } = options;
+
+  // Register bundled fonts with fontconfig BEFORE any SVG rendering
+  ensureFontsRegistered();
 
   const baseUrl = (
     process.env.NEXT_PUBLIC_DASHBOARD_URL ||
@@ -68,12 +118,7 @@ export async function generateWorkshopTicket(options: IGenerateTicketOptions): P
   const cleanWorkshop = escapeXml(truncate(workshopTitle, 45));
   const cleanToken = escapeXml(token);
 
-  // Load bundled fonts and embed as base64 for cross-platform SVG rendering
-  const fontsDir = path.join(process.cwd(), "src", "assets", "fonts");
-  const interBoldB64 = fs.readFileSync(path.join(fontsDir, "Inter-Bold.ttf")).toString("base64");
-  const interRegularB64 = fs.readFileSync(path.join(fontsDir, "Inter-Regular.ttf")).toString("base64");
-
-  // SVG text overlay with embedded fonts — renders identically on any server
+  // SVG text overlay — fonts resolved via fontconfig (no @font-face needed)
   const textSvg = Buffer.from(`
     <svg width="1080" height="1350" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -82,21 +127,6 @@ export async function generateWorkshopTicket(options: IGenerateTicketOptions): P
         </filter>
       </defs>
       <style>
-        @font-face {
-          font-family: 'Inter';
-          font-weight: 400;
-          src: url('data:font/truetype;base64,${interRegularB64}') format('truetype');
-        }
-        @font-face {
-          font-family: 'Inter';
-          font-weight: 700;
-          src: url('data:font/truetype;base64,${interBoldB64}') format('truetype');
-        }
-        @font-face {
-          font-family: 'Inter';
-          font-weight: 800;
-          src: url('data:font/truetype;base64,${interBoldB64}') format('truetype');
-        }
         .attendee-name { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 36px; fill: #0f172a; text-anchor: middle; }
         .workshop-name { font-family: 'Inter', sans-serif; font-weight: 400; font-size: 24px; fill: #475569; text-anchor: middle; }
         .pass-badge { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 22px; fill: #e11d48; text-anchor: middle; letter-spacing: 3px; }
