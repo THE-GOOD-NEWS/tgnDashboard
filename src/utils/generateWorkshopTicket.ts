@@ -77,11 +77,11 @@ export async function generateWorkshopTicket(options: IGenerateTicketOptions): P
         </filter>
       </defs>
       <style>
-        .attendee-name { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 800; font-size: 36px; fill: #0f172a; text-anchor: middle; }
-        .workshop-name { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 24px; fill: #475569; text-anchor: middle; }
-        .pass-badge { font-family: 'Courier New', monospace; font-weight: 800; font-size: 22px; fill: #e11d48; text-anchor: middle; letter-spacing: 3px; }
-        .instruction { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 500; font-size: 17px; fill: #64748b; text-anchor: middle; }
-        .tagline { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 700; font-size: 15px; fill: #e11d48; text-anchor: middle; letter-spacing: 2px; text-transform: uppercase; }
+        .attendee-name { font-family: 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Ubuntu', 'Noto Sans', Arial, Tahoma, 'Cairo', sans-serif; font-weight: 800; font-size: 36px; fill: #0f172a; text-anchor: middle; }
+        .workshop-name { font-family: 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Ubuntu', 'Noto Sans', Arial, Tahoma, 'Cairo', sans-serif; font-weight: 600; font-size: 24px; fill: #475569; text-anchor: middle; }
+        .pass-badge { font-family: 'Segoe UI', 'DejaVu Sans', 'Liberation Mono', 'Courier New', monospace, sans-serif; font-weight: 800; font-size: 22px; fill: #e11d48; text-anchor: middle; letter-spacing: 3px; }
+        .instruction { font-family: 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Ubuntu', 'Noto Sans', Arial, Tahoma, 'Cairo', sans-serif; font-weight: 500; font-size: 17px; fill: #64748b; text-anchor: middle; }
+        .tagline { font-family: 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Ubuntu', 'Noto Sans', Arial, Tahoma, 'Cairo', sans-serif; font-weight: 700; font-size: 15px; fill: #e11d48; text-anchor: middle; letter-spacing: 2px; text-transform: uppercase; }
       </style>
       
       <!-- QR Card Container Frame with soft shadow -->
