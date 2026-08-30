@@ -4,6 +4,8 @@ import WorkshopModel from "@/app/models/workshopModel";
 import WorkshopAttendanceRequestModel from "@/app/models/workshopAttendanceRequestModel";
 import { generateWorkshopTicket } from "@/utils/generateWorkshopTicket";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     await ConnectDB();
@@ -84,7 +86,7 @@ export async function GET(req: NextRequest) {
       headers["Content-Disposition"] = `inline; filename="Workshop-Pass-${cleanToken}.png"`;
     }
 
-    return new NextResponse(imageBuffer, {
+    return new NextResponse(new Uint8Array(imageBuffer), {
       status: 200,
       headers,
     });
