@@ -502,16 +502,23 @@ export default function WorkshopScannerPage() {
 
               {/* Viewport Box */}
               <div
-                className={`relative w-full min-h-[320px] sm:min-h-[380px] rounded-xl overflow-hidden bg-black/5 dark:bg-black/50 flex items-center justify-center border-2 ${
+                className={`relative w-full rounded-xl overflow-hidden border-2 ${
                   scannerActive
-                    ? "border-primary shadow-inner"
-                    : "border-dashed border-gray-300 dark:border-strokedark"
+                    ? "border-primary shadow-inner bg-black"
+                    : "bg-black/5 dark:bg-black/50 flex items-center justify-center border-dashed border-gray-300 dark:border-strokedark"
                 }`}
+                style={scannerActive ? { minHeight: "380px" } : { minHeight: "320px" }}
               >
-                {/* Dedicated empty DOM node for html5-qrcode - No React children inside */}
+                {/* Dedicated empty DOM node for html5-qrcode
+                    - Must have an explicit height so the library's internal
+                      video element can size itself properly.
+                    - Do NOT use flex centering on the parent when active;
+                      html5-qrcode uses absolute positioning internally and
+                      flex fights with it, squishing the video to 0 height. */}
                 <div
                   id="reader"
-                  className={`w-full h-full ${scannerActive ? "block" : "hidden"}`}
+                  style={scannerActive ? { width: "100%", minHeight: "380px" } : undefined}
+                  className={scannerActive ? "block" : "hidden"}
                 />
 
                 {/* Hidden container for file scan fallback */}
