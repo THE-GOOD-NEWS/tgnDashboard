@@ -233,32 +233,40 @@ export default function WorkshopScannerPage() {
       // On mobile, always default to facingMode: "environment" (back camera)
       // Only use a specific deviceId when the user explicitly picks one from the switcher
       const explicitId = cameraIdToUse || (userPickedCameraRef.current ? selectedCameraId : null);
+
+      // When using facingMode, pass it as a simple string – Html5Qrcode handles
+      // the getUserMedia constraint internally.  Do NOT also put facingMode inside
+      // videoConstraints because conflicting constraints cause mobile browsers to
+      // silently fall back to the front camera or reject the request entirely.
       const cameraConfig: any = explicitId
         ? { deviceId: { exact: explicitId } }
         : { facingMode: "environment" };
 
+      const scanConfig: any = {
+        fps: 25,
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          const edgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+          const boxSize = Math.max(220, Math.floor(edgeSize * 0.85));
+          return { width: boxSize, height: boxSize };
+        },
+        // Do NOT set aspectRatio: 1.0 – most mobile back cameras don't support
+        // a perfect 1:1 ratio and will reject the constraint or fall back.
+      };
+
+      // Only add videoConstraints when using a specific deviceId;
+      // when using facingMode the library already builds the correct constraints.
+      if (explicitId) {
+        scanConfig.videoConstraints = {
+          deviceId: { exact: explicitId },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        };
+      }
+
       await qrScanner.start(
         cameraConfig,
-        {
-          fps: 25,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const edgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-            const boxSize = Math.max(220, Math.floor(edgeSize * 0.9));
-            return { width: boxSize, height: boxSize };
-          },
-          aspectRatio: 1.0,
-          videoConstraints: {
-            width: { ideal: 1280, min: 640 },
-            height: { ideal: 720, min: 480 },
-            facingMode: explicitId ? undefined : "environment",
-            advanced: [
-              { focusMode: "continuous" },
-              { exposureMode: "continuous" },
-              { whiteBalanceMode: "continuous" },
-            ] as any,
-          },
-        },
-        (decodedText) => {
+        scanConfig,
+        (decodedText: string) => {
           if (!isProcessingScanRef.current) {
             isProcessingScanRef.current = true;
             handleCheckIn(decodedText).finally(() => {
@@ -272,6 +280,26 @@ export default function WorkshopScannerPage() {
           // ignore scan errors per frame
         }
       );
+
+      // After camera started successfully, try to apply advanced constraints
+      // (autofocus, auto-exposure) – these are best-effort and may not be
+      // supported on all devices.
+      try {
+        const videoElement = document.querySelector("#reader video") as HTMLVideoElement | null;
+        if (videoElement?.srcObject) {
+          const track = (videoElement.srcObject as MediaStream).getVideoTracks()[0];
+          if (track && typeof track.applyConstraints === "function") {
+            await track.applyConstraints({
+              advanced: [
+                { focusMode: "continuous" } as any,
+                { exposureMode: "continuous" } as any,
+              ],
+            });
+          }
+        }
+      } catch {
+        // Advanced constraints not supported on this device – safe to ignore
+      }
 
       // Re-fetch cameras after permission granted so labels are populated
       loadCameras();
