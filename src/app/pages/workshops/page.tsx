@@ -1587,6 +1587,19 @@ export default function WorkshopsPage() {
                                     <button onClick={() => updateAttendanceStatus(req._id, 'archived')} className="p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition" title="Archive"><FaEye size={12}/></button>
                                   </>
                                 )}
+                              {req.status === "approved" && (
+                                <a
+                                  href={`/api/workshop-ticket?token=${encodeURIComponent(
+                                    req.checkInToken || req._id
+                                  )}&download=1`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-2 text-gray-400 hover:text-primary transition"
+                                  title="Download Branded QR Entry Pass"
+                                >
+                                  <MdQrCodeScanner size={16} />
+                                </a>
+                              )}
                               <button 
                                 onClick={() => openReqEdit(req)}
                                 className="p-2 text-gray-400 hover:text-amber-500 transition"

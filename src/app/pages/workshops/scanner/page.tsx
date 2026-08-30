@@ -16,6 +16,9 @@ import {
   MdArrowBack,
   MdUploadFile,
   MdCameraswitch,
+  MdClose,
+  MdPhone,
+  MdEmail,
 } from "react-icons/md";
 import { FaBarcode } from "react-icons/fa";
 import Link from "next/link";
@@ -48,6 +51,7 @@ export default function WorkshopScannerPage() {
   const [manualCode, setManualCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ICheckInResult | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [recentScans, setRecentScans] = useState<IRecentScan[]>([]);
   const [scannerActive, setScannerActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -133,6 +137,7 @@ export default function WorkshopScannerPage() {
       const res = await axios.post("/api/workshop-checkin", { token });
       const data: ICheckInResult = res.data;
       setResult(data);
+      setIsModalOpen(true);
 
       if (data.alreadyCheckedIn) {
         playSound("already");
@@ -177,10 +182,21 @@ export default function WorkshopScannerPage() {
         success: false,
         error: errMsg,
       });
+      setIsModalOpen(true);
       toast.error(errMsg);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleScanNext = () => {
+    setIsModalOpen(false);
+    setResult(null);
+    startCamera();
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
   };
 
   const startCamera = async (facingMode?: "environment" | "user") => {
@@ -747,6 +763,171 @@ export default function WorkshopScannerPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Scan Verification Result Popup Modal ── */}
+      {isModalOpen && result && (
+        <div className="fixed inset-0 z-99999 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-200">
+          <div
+            className="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-boxdark border border-stroke dark:border-strokedark p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Close Button */}
+            <button
+              onClick={handleCloseModal}
+              className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-black dark:bg-meta-4 dark:text-gray-300 dark:hover:bg-opacity-80 transition"
+              title="Close modal"
+            >
+              <MdClose size={20} />
+            </button>
+
+            {/* Error State */}
+            {result.error ? (
+              <div className="text-center py-4">
+                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-red-100 text-red-500 dark:bg-red-900/30">
+                  <MdError size={48} />
+                </div>
+                <span className="inline-block rounded-full bg-red-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                  Check-in Failed
+                </span>
+                <h3 className="mt-3 text-xl font-bold text-black dark:text-white">
+                  Invalid Entry Pass
+                </h3>
+                <p className="mt-2 text-sm text-red-600 dark:text-red-300 max-w-sm mx-auto">
+                  {result.error}
+                </p>
+                {lastScannedText && (
+                  <p className="mt-3 text-xs font-mono text-gray-400 bg-gray-50 dark:bg-meta-4 px-3 py-2 rounded-xl truncate">
+                    Scanned: {lastScannedText}
+                  </p>
+                )}
+
+                <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
+                  <button
+                    onClick={handleScanNext}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-md hover:bg-primary/90 transition active:scale-95"
+                  >
+                    <MdCameraAlt size={18} />
+                    Try Scanning Again
+                  </button>
+                  <button
+                    onClick={handleCloseModal}
+                    className="w-full sm:w-auto rounded-xl bg-gray-100 dark:bg-meta-4 px-5 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-200 transition"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Success or Already Checked In State */
+              <div>
+                {/* Status Badge & Icon */}
+                <div className="flex items-center gap-4 mb-5">
+                  {result.alreadyCheckedIn ? (
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white text-3xl shadow-lg shadow-amber-500/20">
+                      <MdWarning />
+                    </div>
+                  ) : (
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-white text-3xl shadow-lg shadow-emerald-500/20">
+                      <MdCheckCircle />
+                    </div>
+                  )}
+                  <div>
+                    <span
+                      className={`inline-block text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${
+                        result.alreadyCheckedIn
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+                      }`}
+                    >
+                      {result.alreadyCheckedIn ? "⚠️ Already Checked In" : "🎉 Attendance Activated"}
+                    </span>
+                    <h3 className="text-2xl font-black text-black dark:text-white mt-1">
+                      {result.attendeeName}
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Details Card */}
+                <div className="rounded-2xl bg-gray-50 p-4 dark:bg-meta-4/60 space-y-3 text-sm border border-stroke/60 dark:border-strokedark">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2 text-xs">
+                      <MdPerson className="text-primary text-base" /> Workshop
+                    </span>
+                    <span className="font-bold text-black dark:text-white text-right max-w-[240px] truncate">
+                      {result.workshopTitle}
+                    </span>
+                  </div>
+
+                  {result.location && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2 text-xs">
+                        <MdLocationOn className="text-primary text-base" /> Venue
+                      </span>
+                      <span className="font-medium text-black dark:text-white">
+                        {result.location}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2 text-xs">
+                      <MdAccessTime className="text-primary text-base" /> Check-in Time
+                    </span>
+                    <span className="font-mono font-bold text-black dark:text-white">
+                      {result.checkedInAt
+                        ? new Date(result.checkedInAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })
+                        : "Just Now"}
+                    </span>
+                  </div>
+
+                  {result.attendeePhone && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2 text-xs">
+                        <MdPhone className="text-primary text-base" /> Phone
+                      </span>
+                      <span className="font-medium text-black dark:text-white">
+                        {result.attendeePhone}
+                      </span>
+                    </div>
+                  )}
+
+                  {result.attendeeEmail && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2 text-xs">
+                        <MdEmail className="text-primary text-base" /> Email
+                      </span>
+                      <span className="text-xs text-gray-600 dark:text-gray-300">
+                        {result.attendeeEmail}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
+                  <button
+                    onClick={handleScanNext}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-md hover:bg-primary/90 transition active:scale-95"
+                  >
+                    <MdCameraAlt size={18} />
+                    Scan Next Attendee
+                  </button>
+                  <button
+                    onClick={handleCloseModal}
+                    className="w-full sm:w-auto rounded-xl bg-gray-100 dark:bg-meta-4 px-5 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-200 transition"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </DefaultLayout>
   );
 }
