@@ -92,6 +92,21 @@ export default function WorkshopScannerPage() {
     }
   };
 
+  const stopCamera = async () => {
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+        scannerRef.current.clear();
+      } catch (e) {
+        console.error(e);
+      }
+      scannerRef.current = null;
+    }
+    setScannerActive(false);
+  };
+
   // Check in handler
   const handleCheckIn = async (tokenOrUrl: string) => {
     if (!tokenOrUrl || loading) return;
@@ -132,6 +147,11 @@ export default function WorkshopScannerPage() {
       } else {
         playSound("success");
         toast.success(`Checked in: ${data.attendeeName}!`);
+      }
+
+      // Automatically stop the camera when attendee is verified
+      if (data.success) {
+        await stopCamera();
       }
 
       setRecentScans((prev) => [
@@ -247,21 +267,6 @@ export default function WorkshopScannerPage() {
         scannerRef.current = null;
       }
     }
-  };
-
-  const stopCamera = async () => {
-    if (scannerRef.current) {
-      try {
-        if (scannerRef.current.isScanning) {
-          await scannerRef.current.stop();
-        }
-        scannerRef.current.clear();
-      } catch (e) {
-        console.error(e);
-      }
-      scannerRef.current = null;
-    }
-    setScannerActive(false);
   };
 
   const toggleCameraFacing = async () => {
@@ -670,6 +675,19 @@ export default function WorkshopScannerPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Scan Next Attendee button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResult(null);
+                      startCamera();
+                    }}
+                    className="w-full mt-4 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-primary/90 transition active:scale-95"
+                  >
+                    <MdCameraAlt size={16} />
+                    Scan Next Attendee
+                  </button>
                 </div>
               )}
             </div>
