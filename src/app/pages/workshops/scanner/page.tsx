@@ -43,10 +43,6 @@ interface IRecentScan {
   status: "success" | "already";
 }
 
-interface ICameraDevice {
-  id: string;
-  label: string;
-}
 
 export default function WorkshopScannerPage() {
   const [manualCode, setManualCode] = useState("");
@@ -55,8 +51,7 @@ export default function WorkshopScannerPage() {
   const [recentScans, setRecentScans] = useState<IRecentScan[]>([]);
   const [scannerActive, setScannerActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [cameras, setCameras] = useState<ICameraDevice[]>([]);
-  const [selectedCameraId, setSelectedCameraId] = useState<string>("");
+  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
   const [lastScannedText, setLastScannedText] = useState<string>("");
 
   const scannerRef = useRef<any>(null);
@@ -168,39 +163,10 @@ export default function WorkshopScannerPage() {
     }
   };
 
-  // Track whether user has explicitly chosen a camera from the switcher
-  const userPickedCameraRef = useRef(false);
-
-  // Load available camera devices
-  const loadCameras = async () => {
-    try {
-      const { Html5Qrcode } = await import("html5-qrcode");
-      const devices = await Html5Qrcode.getCameras();
-      if (devices && devices.length > 0) {
-        setCameras(devices);
-        if (!selectedCameraId) {
-          // Try to find back camera by label (only works after permission)
-          const backCam = devices.find(
-            (d) =>
-              d.label.toLowerCase().includes("back") ||
-              d.label.toLowerCase().includes("rear") ||
-              d.label.toLowerCase().includes("environment") ||
-              d.label.toLowerCase().includes("0")
-          );
-          setSelectedCameraId(backCam ? backCam.id : devices[devices.length - 1].id);
-        }
-      }
-    } catch (e) {
-      console.warn("Could not enumerate cameras prior to permission request:", e);
-    }
-  };
-
-  useEffect(() => {
-    loadCameras();
-  }, []);
-
-  const startCamera = async (cameraIdToUse?: string) => {
+  const startCamera = async (facingMode?: "environment" | "user") => {
+    const targetFacing = facingMode || cameraFacing;
     setCameraError(null);
+
     try {
       const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
 
@@ -211,12 +177,13 @@ export default function WorkshopScannerPage() {
           }
           scannerRef.current.clear();
         } catch {}
+        scannerRef.current = null;
       }
 
       setScannerActive(true);
 
       // Brief tick to ensure the DOM node is rendered
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const qrScanner = new Html5Qrcode("reader", {
         formatsToSupport: [
@@ -230,42 +197,13 @@ export default function WorkshopScannerPage() {
       });
       scannerRef.current = qrScanner;
 
-      // On mobile, always default to facingMode: "environment" (back camera)
-      // Only use a specific deviceId when the user explicitly picks one from the switcher
-      const explicitId = cameraIdToUse || (userPickedCameraRef.current ? selectedCameraId : null);
-
-      // When using facingMode, pass it as a simple string – Html5Qrcode handles
-      // the getUserMedia constraint internally.  Do NOT also put facingMode inside
-      // videoConstraints because conflicting constraints cause mobile browsers to
-      // silently fall back to the front camera or reject the request entirely.
-      const cameraConfig: any = explicitId
-        ? { deviceId: { exact: explicitId } }
-        : { facingMode: "environment" };
-
-      const scanConfig: any = {
-        fps: 25,
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const edgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-          const boxSize = Math.max(220, Math.floor(edgeSize * 0.85));
-          return { width: boxSize, height: boxSize };
-        },
-        // Do NOT set aspectRatio: 1.0 – most mobile back cameras don't support
-        // a perfect 1:1 ratio and will reject the constraint or fall back.
-      };
-
-      // Only add videoConstraints when using a specific deviceId;
-      // when using facingMode the library already builds the correct constraints.
-      if (explicitId) {
-        scanConfig.videoConstraints = {
-          deviceId: { exact: explicitId },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        };
-      }
-
+      // Use standard facingMode constraint
       await qrScanner.start(
-        cameraConfig,
-        scanConfig,
+        { facingMode: targetFacing },
+        {
+          fps: 20,
+          qrbox: { width: 250, height: 250 },
+        },
         (decodedText: string) => {
           if (!isProcessingScanRef.current) {
             isProcessingScanRef.current = true;
@@ -281,28 +219,21 @@ export default function WorkshopScannerPage() {
         }
       );
 
-      // After camera started successfully, try to apply advanced constraints
-      // (autofocus, auto-exposure) – these are best-effort and may not be
-      // supported on all devices.
-      try {
+      // iOS Safari video compatibility safeguards
+      setTimeout(() => {
         const videoElement = document.querySelector("#reader video") as HTMLVideoElement | null;
-        if (videoElement?.srcObject) {
-          const track = (videoElement.srcObject as MediaStream).getVideoTracks()[0];
-          if (track && typeof track.applyConstraints === "function") {
-            await track.applyConstraints({
-              advanced: [
-                { focusMode: "continuous" } as any,
-                { exposureMode: "continuous" } as any,
-              ],
-            });
+        if (videoElement) {
+          videoElement.setAttribute("playsinline", "true");
+          videoElement.setAttribute("webkit-playsinline", "true");
+          videoElement.setAttribute("autoplay", "true");
+          videoElement.setAttribute("muted", "true");
+          videoElement.muted = true;
+          videoElement.playsInline = true;
+          if (videoElement.paused) {
+            videoElement.play().catch(() => {});
           }
         }
-      } catch {
-        // Advanced constraints not supported on this device – safe to ignore
-      }
-
-      // Re-fetch cameras after permission granted so labels are populated
-      loadCameras();
+      }, 150);
     } catch (err: any) {
       console.error("Camera error:", err);
       setCameraError(
@@ -333,14 +264,14 @@ export default function WorkshopScannerPage() {
     setScannerActive(false);
   };
 
-  const handleCameraChange = async (newCamId: string) => {
-    userPickedCameraRef.current = true;
-    setSelectedCameraId(newCamId);
+  const toggleCameraFacing = async () => {
+    const nextFacing = cameraFacing === "environment" ? "user" : "environment";
+    setCameraFacing(nextFacing);
     if (scannerActive) {
       await stopCamera();
       setTimeout(() => {
-        startCamera(newCamId);
-      }, 150);
+        startCamera(nextFacing);
+      }, 200);
     }
   };
 
@@ -466,22 +397,15 @@ export default function WorkshopScannerPage() {
                 </h2>
 
                 <div className="flex items-center gap-2">
-                  {cameras.length > 1 && (
-                    <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-meta-4 px-2.5 py-1 rounded-lg border border-stroke dark:border-strokedark">
-                      <MdCameraswitch className="text-gray-400 text-sm" />
-                      <select
-                        value={selectedCameraId}
-                        onChange={(e) => handleCameraChange(e.target.value)}
-                        className="bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-200 outline-none cursor-pointer"
-                      >
-                        {cameras.map((c, i) => (
-                          <option key={c.id} value={c.id} className="dark:bg-boxdark">
-                            {c.label || `Camera ${i + 1}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    onClick={toggleCameraFacing}
+                    className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-meta-4 dark:hover:bg-opacity-80 px-3 py-1.5 rounded-lg border border-stroke dark:border-strokedark text-xs font-semibold text-gray-700 dark:text-gray-200 transition active:scale-95 shadow-sm"
+                    title="Switch between Front and Back camera"
+                  >
+                    <MdCameraswitch className="text-primary text-sm" />
+                    <span>{cameraFacing === "environment" ? "Back Camera" : "Front Camera"}</span>
+                  </button>
 
                   <span
                     className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${

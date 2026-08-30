@@ -249,44 +249,41 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 
 /* ── html5-qrcode scanner overrides ──
-   The library creates internal elements with inline styles that can
-   conflict with the page layout, especially on mobile.  These rules
-   ensure the video feed from the back camera is always visible. */
+   Ensure video stream is properly visible, centered, and responsive on mobile browsers */
 #reader {
+    width: 100% !important;
     position: relative !important;
     overflow: hidden !important;
-    background: #000 !important;
+    border-radius: 0.75rem;
+    background: #000;
 }
 
 #reader video {
     width: 100% !important;
-    height: 100% !important;
+    height: auto !important;
+    max-height: 480px;
     object-fit: cover !important;
     display: block !important;
-    min-height: 300px !important;
+    margin: 0 auto;
+    border-radius: 0.75rem;
 }
 
-/* The library sometimes adds an inner wrapper div with id like
-   "reader__dashboard_section" – hide the dashboard UI it injects */
+/* Hide default html5-qrcode UI dashboard injection */
 #reader__dashboard_section,
 #reader__dashboard_section_swaplink,
 #reader__status_span {
     display: none !important;
 }
 
-/* Keep the scan-region visible */
 #reader__scan_region {
     width: 100% !important;
-    min-height: 300px !important;
+    position: relative !important;
 }
 
 #reader__scan_region video {
     width: 100% !important;
-    min-height: 300px !important;
+    height: auto !important;
+    max-height: 480px;
     object-fit: cover !important;
 }
 
-/* The library wraps the video in a div – make sure it's sized */
-#reader__scan_region > div {
-    width: 100% !important;
-}
