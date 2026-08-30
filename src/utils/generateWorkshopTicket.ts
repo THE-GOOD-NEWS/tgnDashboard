@@ -68,7 +68,12 @@ export async function generateWorkshopTicket(options: IGenerateTicketOptions): P
   const cleanWorkshop = escapeXml(truncate(workshopTitle, 45));
   const cleanToken = escapeXml(token);
 
-  // SVG text overlay positioned nicely inside the template
+  // Load bundled fonts and embed as base64 for cross-platform SVG rendering
+  const fontsDir = path.join(process.cwd(), "src", "assets", "fonts");
+  const interBoldB64 = fs.readFileSync(path.join(fontsDir, "Inter-Bold.ttf")).toString("base64");
+  const interRegularB64 = fs.readFileSync(path.join(fontsDir, "Inter-Regular.ttf")).toString("base64");
+
+  // SVG text overlay with embedded fonts — renders identically on any server
   const textSvg = Buffer.from(`
     <svg width="1080" height="1350" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -77,11 +82,26 @@ export async function generateWorkshopTicket(options: IGenerateTicketOptions): P
         </filter>
       </defs>
       <style>
-        .attendee-name { font-family: 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Ubuntu', 'Noto Sans', Arial, Tahoma, 'Cairo', sans-serif; font-weight: 800; font-size: 36px; fill: #0f172a; text-anchor: middle; }
-        .workshop-name { font-family: 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Ubuntu', 'Noto Sans', Arial, Tahoma, 'Cairo', sans-serif; font-weight: 600; font-size: 24px; fill: #475569; text-anchor: middle; }
-        .pass-badge { font-family: 'Segoe UI', 'DejaVu Sans', 'Liberation Mono', 'Courier New', monospace, sans-serif; font-weight: 800; font-size: 22px; fill: #e11d48; text-anchor: middle; letter-spacing: 3px; }
-        .instruction { font-family: 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Ubuntu', 'Noto Sans', Arial, Tahoma, 'Cairo', sans-serif; font-weight: 500; font-size: 17px; fill: #64748b; text-anchor: middle; }
-        .tagline { font-family: 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Ubuntu', 'Noto Sans', Arial, Tahoma, 'Cairo', sans-serif; font-weight: 700; font-size: 15px; fill: #e11d48; text-anchor: middle; letter-spacing: 2px; text-transform: uppercase; }
+        @font-face {
+          font-family: 'Inter';
+          font-weight: 400;
+          src: url('data:font/truetype;base64,${interRegularB64}') format('truetype');
+        }
+        @font-face {
+          font-family: 'Inter';
+          font-weight: 700;
+          src: url('data:font/truetype;base64,${interBoldB64}') format('truetype');
+        }
+        @font-face {
+          font-family: 'Inter';
+          font-weight: 800;
+          src: url('data:font/truetype;base64,${interBoldB64}') format('truetype');
+        }
+        .attendee-name { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 36px; fill: #0f172a; text-anchor: middle; }
+        .workshop-name { font-family: 'Inter', sans-serif; font-weight: 400; font-size: 24px; fill: #475569; text-anchor: middle; }
+        .pass-badge { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 22px; fill: #e11d48; text-anchor: middle; letter-spacing: 3px; }
+        .instruction { font-family: 'Inter', sans-serif; font-weight: 400; font-size: 17px; fill: #64748b; text-anchor: middle; }
+        .tagline { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 15px; fill: #e11d48; text-anchor: middle; letter-spacing: 2px; text-transform: uppercase; }
       </style>
       
       <!-- QR Card Container Frame with soft shadow -->

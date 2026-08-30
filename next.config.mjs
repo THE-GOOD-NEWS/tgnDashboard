@@ -24,6 +24,14 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    outputFileTracingIncludes: {
+      "/api/workshop-ticket": [
+        "./src/assets/fonts/**/*",
+        "./public/images/qr/**/*",
+      ],
+    },
+  },
 };
 
 export default nextConfig;
