@@ -168,6 +168,9 @@ export default function WorkshopScannerPage() {
     }
   };
 
+  // Track whether user has explicitly chosen a camera from the switcher
+  const userPickedCameraRef = useRef(false);
+
   // Load available camera devices
   const loadCameras = async () => {
     try {
@@ -176,14 +179,15 @@ export default function WorkshopScannerPage() {
       if (devices && devices.length > 0) {
         setCameras(devices);
         if (!selectedCameraId) {
-          // Prefer environment / back camera if labeled, else first camera
+          // Try to find back camera by label (only works after permission)
           const backCam = devices.find(
             (d) =>
               d.label.toLowerCase().includes("back") ||
               d.label.toLowerCase().includes("rear") ||
-              d.label.toLowerCase().includes("environment")
+              d.label.toLowerCase().includes("environment") ||
+              d.label.toLowerCase().includes("0")
           );
-          setSelectedCameraId(backCam ? backCam.id : devices[0].id);
+          setSelectedCameraId(backCam ? backCam.id : devices[devices.length - 1].id);
         }
       }
     } catch (e) {
@@ -226,10 +230,11 @@ export default function WorkshopScannerPage() {
       });
       scannerRef.current = qrScanner;
 
-      // Select camera constraint
-      const activeCamId = cameraIdToUse || selectedCameraId;
-      const cameraConfig = activeCamId
-        ? { deviceId: { exact: activeCamId } }
+      // On mobile, always default to facingMode: "environment" (back camera)
+      // Only use a specific deviceId when the user explicitly picks one from the switcher
+      const explicitId = cameraIdToUse || (userPickedCameraRef.current ? selectedCameraId : null);
+      const cameraConfig: any = explicitId
+        ? { deviceId: { exact: explicitId } }
         : { facingMode: "environment" };
 
       await qrScanner.start(
@@ -245,6 +250,7 @@ export default function WorkshopScannerPage() {
           videoConstraints: {
             width: { ideal: 1280, min: 640 },
             height: { ideal: 720, min: 480 },
+            facingMode: explicitId ? undefined : "environment",
             advanced: [
               { focusMode: "continuous" },
               { exposureMode: "continuous" },
@@ -300,6 +306,7 @@ export default function WorkshopScannerPage() {
   };
 
   const handleCameraChange = async (newCamId: string) => {
+    userPickedCameraRef.current = true;
     setSelectedCameraId(newCamId);
     if (scannerActive) {
       await stopCamera();
