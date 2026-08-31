@@ -20,6 +20,8 @@ import {
   FaCheck,
   FaBan,
   FaDownload,
+  FaChevronLeft,
+  FaChevronRight,
 } from "react-icons/fa";
 import { MdOutlineWorkspaces, MdQrCodeScanner } from "react-icons/md";
 import { HiOutlinePhoto } from "react-icons/hi2";
@@ -73,9 +75,9 @@ interface IWorkshopAttendanceRequest {
   howDidYouKnow: "TGN" | "Instructor page" | "Ads" | "Friends and Family";
   areaOfResidence?: string;
   age?: number;
-  type: "available" | "waitlist" ;
+  type: "available" | "waitlist";
   instapayImage?: string;
-  status: "pending" | "approved" | "rejected" |"archived";
+  status: "pending" | "approved" | "rejected" | "archived";
   notes?: string;
   seen: boolean;
   checkInToken?: string;
@@ -177,8 +179,8 @@ function StatBar({ label, count, total, color }: { label: string, count: number,
         <span className="text-gray-400">{count} / {total} ({pct}%)</span>
       </div>
       <div className="h-2 w-full bg-gray-100 dark:bg-meta-4 rounded-full overflow-hidden">
-        <div 
-          className={`h-full ${color} transition-all duration-1000`} 
+        <div
+          className={`h-full ${color} transition-all duration-1000`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -224,10 +226,9 @@ function Field({
 
 function inputCls(readOnly: boolean) {
   return `w-full rounded-xl border px-4 py-2.5 text-sm font-medium outline-none transition
-    ${
-      readOnly
-        ? "border-transparent bg-gray-50 text-gray-700 dark:bg-meta-4 dark:text-gray-300 cursor-default"
-        : "border-stroke bg-white text-black focus:border-primary focus:ring-2 focus:ring-primary/10 shadow-sm dark:border-strokedark dark:bg-boxdark dark:text-white"
+    ${readOnly
+      ? "border-transparent bg-gray-50 text-gray-700 dark:bg-meta-4 dark:text-gray-300 cursor-default"
+      : "border-stroke bg-white text-black focus:border-primary focus:ring-2 focus:ring-primary/10 shadow-sm dark:border-strokedark dark:bg-boxdark dark:text-white"
     }`;
 }
 
@@ -290,33 +291,33 @@ const autoSlug = (title: string) =>
 const fmt = (iso: string) =>
   iso
     ? new Date(iso).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
     : "—";
 
 const statusColors: Record<IWorkshopAttendanceRequest["status"], string> = {
   pending: "bg-yellow-100 text-yellow-700",
   approved: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-600",
-  archived:"bg-gray-100 text-gray-600"
+  archived: "bg-gray-100 text-gray-600"
 };
 
 // ─── Reusable Tags Input Component ───────────────────────────────────────────
-function TagsInput({ 
-  value = [], 
-  onChange, 
-  placeholder, 
-  readOnly 
-}: { 
-  value: string[], 
-  onChange: (v: string[]) => void, 
-  placeholder?: string, 
-  readOnly?: boolean 
+function TagsInput({
+  value = [],
+  onChange,
+  placeholder,
+  readOnly
+}: {
+  value: string[],
+  onChange: (v: string[]) => void,
+  placeholder?: string,
+  readOnly?: boolean
 }) {
   const [inputValue, setInputValue] = useState("");
-  
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (readOnly) return;
     if (e.key === 'Enter' || e.key === ',') {
@@ -365,14 +366,14 @@ function TagsInput({
 }
 
 // ─── Reusable Image DnD Component ────────────────────────────────────────────
-function ImageUploadAndSort({ 
-  images, 
-  onChange, 
-  readOnly 
-}: { 
-  images: string[], 
-  onChange: (val: string[] | ((prev: string[]) => string[])) => void, 
-  readOnly?: boolean 
+function ImageUploadAndSort({
+  images,
+  onChange,
+  readOnly
+}: {
+  images: string[],
+  onChange: (val: string[] | ((prev: string[]) => string[])) => void,
+  readOnly?: boolean
 }) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
 
@@ -504,41 +505,68 @@ export default function WorkshopsPage() {
   const [reqModalOpen, setReqModalOpen] = useState(false);
   const [currentReq, setCurrentReq] = useState<IWorkshopAttendanceRequest | null>(null);
 
+  // Requests Tab Pagination & Filter computation
+  const [requestsPage, setRequestsPage] = useState(1);
+  const requestsPerPage = 10;
+
+  const filteredRequestsList = useMemo(() => {
+    return allRequests.filter((req) => {
+      const matchWorkshop =
+        !selectedWorkshop ||
+        (typeof req.workshopId === "object"
+          ? req.workshopId._id
+          : req.workshopId) === selectedWorkshop;
+      const matchStatus = !selectedStatus || req.status === selectedStatus;
+      const matchArea = !selectedArea || req.areaOfResidence === selectedArea;
+      return matchWorkshop && matchStatus && matchArea;
+    });
+  }, [allRequests, selectedWorkshop, selectedStatus, selectedArea]);
+
+  const totalRequestsPages = Math.max(
+    1,
+    Math.ceil(filteredRequestsList.length / requestsPerPage)
+  );
+
+  const paginatedRequestsList = useMemo(() => {
+    const start = (requestsPage - 1) * requestsPerPage;
+    return filteredRequestsList.slice(start, start + requestsPerPage);
+  }, [filteredRequestsList, requestsPage, requestsPerPage]);
+
   // Package Requests state
   const [pkgRequests, setPkgRequests] = useState<IWorkshopPackageRequest[]>([]);
   const [pkgRequestsLoading, setPkgRequestsLoading] = useState(false);
 
   const analyticsData = useMemo(() => {
-    if (topTab !== "analytics") return { 
-      topRequested: [] as IWorkshop[], 
-      topWaitlist: [] as IWorkshop[], 
+    if (topTab !== "analytics") return {
+      topRequested: [] as IWorkshop[],
+      topWaitlist: [] as IWorkshop[],
       topComingSoon: [] as IWorkshop[],
-      requestCounts: {} as Record<string, number>, 
-      waitlistCounts: {} as Record<string, number>, 
+      requestCounts: {} as Record<string, number>,
+      waitlistCounts: {} as Record<string, number>,
       comingSoonCounts: {} as Record<string, number>,
-      filteredRequests: [] as IWorkshopAttendanceRequest[] 
+      filteredRequests: [] as IWorkshopAttendanceRequest[]
     };
-    
+
     const requestCounts: Record<string, number> = {};
     const waitlistCounts: Record<string, number> = {};
     const comingSoonCounts: Record<string, number> = {};
-    
+
     const filteredRequests = allRequests.filter(req => {
       if (analyticsFilterType === "all") return true;
       const createdAt = new Date(req.createdAt).getTime();
-      
+
       if (analyticsFilterType === "month") {
         const [year, month] = analyticsMonth.split("-").map(Number);
         const date = new Date(req.createdAt);
         return date.getFullYear() === year && (date.getMonth() + 1) === month;
       }
-      
+
       if (analyticsFilterType === "custom") {
-        const start = analyticsStartDate ? new Date(analyticsStartDate).setHours(0,0,0,0) : 0;
-        const end = analyticsEndDate ? new Date(analyticsEndDate).setHours(23,59,59,999) : Infinity;
+        const start = analyticsStartDate ? new Date(analyticsStartDate).setHours(0, 0, 0, 0) : 0;
+        const end = analyticsEndDate ? new Date(analyticsEndDate).setHours(23, 59, 59, 999) : Infinity;
         return createdAt >= start && createdAt <= end;
       }
-      
+
       return true;
     });
 
@@ -550,9 +578,9 @@ export default function WorkshopsPage() {
       }
     });
 
-    const topRequested = [...workshops].sort((a,b) => (requestCounts[b._id] || 0) - (requestCounts[a._id] || 0)).slice(0, 5);
-    const topWaitlist = [...workshops].sort((a,b) => (waitlistCounts[b._id] || 0) - (waitlistCounts[a._id] || 0)).slice(0, 5);
-    const topComingSoon = [...workshops].sort((a,b) => (comingSoonCounts[b._id] || 0) - (comingSoonCounts[a._id] || 0)).slice(0, 5);
+    const topRequested = [...workshops].sort((a, b) => (requestCounts[b._id] || 0) - (requestCounts[a._id] || 0)).slice(0, 5);
+    const topWaitlist = [...workshops].sort((a, b) => (waitlistCounts[b._id] || 0) - (waitlistCounts[a._id] || 0)).slice(0, 5);
+    const topComingSoon = [...workshops].sort((a, b) => (comingSoonCounts[b._id] || 0) - (comingSoonCounts[a._id] || 0)).slice(0, 5);
 
     return { topRequested, topWaitlist, topComingSoon, requestCounts, waitlistCounts, comingSoonCounts, filteredRequests };
   }, [topTab, allRequests, workshops, analyticsFilterType, analyticsMonth, analyticsStartDate, analyticsEndDate]);
@@ -586,7 +614,7 @@ export default function WorkshopsPage() {
       });
       setWorkshops(res.data.data);
       if (topTab === "workshops") setTotal(res.data.total);
-      
+
       // Also fetch all workshops for dropdowns if not already fetched or if needed
       if (allWorkshops.length === 0 || topTab !== "workshops") {
         const allRes = await axios.get("/api/workshops", { params: { all: true } });
@@ -634,7 +662,7 @@ export default function WorkshopsPage() {
       });
       // Filter out requests for workshops that don't exist (where workshopId is null after population)
       const validRequests = res.data.data.filter((req: any) => req.workshopId);
-      
+
       if (workshopId) {
         setRequests(validRequests);
       } else {
@@ -708,7 +736,7 @@ export default function WorkshopsPage() {
         compress: true,
       });
       const primaryColor: [number, number, number] = [91, 28, 30]; // #5B1C1E in RGB
-      
+
       // Load Logo
       try {
         const img = new Image();
@@ -717,7 +745,7 @@ export default function WorkshopsPage() {
           img.onload = resolve;
           img.onerror = reject;
         });
-        
+
         // Center the logo at the top
         const logoWidth = 50; // Increased as requested
         const logoHeight = (img.height * logoWidth) / img.width;
@@ -725,31 +753,31 @@ export default function WorkshopsPage() {
       } catch (err) {
         console.warn("Logo failed to load for PDF, skipping...", err);
       }
-      
+
       // Header (Pushed down to make room for logo)
       doc.setFontSize(22);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.text("Attendance List", 105, 55, { align: "center" });
-      
+
       doc.setFontSize(10);
       doc.setTextColor(120);
       doc.text("Generated on " + new Date().toLocaleString(), 105, 62, { align: "center" });
-      
+
       // Details Section
       doc.setDrawColor(210);
       doc.line(14, 68, 196, 68);
-      
+
       doc.setFontSize(14);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.text(workshop.title, 14, 78);
-      
+
       doc.setFontSize(10);
       doc.setTextColor(100);
       doc.text(`Location: ${workshop.location?.altText || 'N/A'}`, 14, 86);
       doc.text(`Schedule: ${fmt(workshop.startDate)} to ${fmt(workshop.endDate)}`, 14, 91);
       doc.text(`Capacity: ${workshop.slots} slots`, 14, 96);
       doc.text(`Current Attendees: ${workshop.attendance?.length || 0}`, 14, 101);
-      
+
       // Table
       const tableColumn = ["#", "Attendee Name", "Email Address", "Phone Number"];
       const tableRows = (workshop.attendance || []).map((att, index) => [
@@ -758,7 +786,7 @@ export default function WorkshopsPage() {
         att.email,
         att.phone
       ]);
-      
+
       autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
@@ -769,7 +797,7 @@ export default function WorkshopsPage() {
         alternateRowStyles: { fillColor: [248, 245, 245] },
         margin: { top: 108 }
       });
-      
+
       doc.save(`Attendance_List_${workshop.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
     } catch (error) {
       console.error("PDF Generation error:", error);
@@ -801,13 +829,13 @@ export default function WorkshopsPage() {
     setPkgModalMode("edit");
     setPkgModalOpen(true);
   };
-  
+
   const closePkgModal = () => {
     setPkgModalOpen(false);
     setPkgModalMode(null);
     setCurrentPkg(emptyPackage());
   };
-  
+
   const setPkgField = (key: keyof IWorkshopPackage, value: any) =>
     setCurrentPkg((p) => ({ ...p, [key]: value }));
 
@@ -895,18 +923,124 @@ export default function WorkshopsPage() {
     requestId: string,
     status: IWorkshopAttendanceRequest["status"],
   ) => {
+    // 1. Snapshot previous states for rollback if needed
+    const prevRequests = [...requests];
+    const prevAllRequests = [...allRequests];
+    const prevCurrent = { ...current };
+    const prevWorkshops = [...workshops];
+    const prevAllWorkshops = [...allWorkshops];
+
+    // Find the target request
+    const targetReq =
+      allRequests.find((r) => r._id === requestId) ||
+      requests.find((r) => r._id === requestId);
+    const oldStatus = targetReq?.status;
+
+    // 2. Optimistic local update of requests in both lists
+    setRequests((prev) =>
+      prev.map((r) => (r._id === requestId ? { ...r, status } : r))
+    );
+    setAllRequests((prev) =>
+      prev.map((r) => (r._id === requestId ? { ...r, status } : r))
+    );
+
+    // 3. Optimistic local update of attendance array in workshops and current workshop
+    if (targetReq) {
+      const wId =
+        typeof targetReq.workshopId === "object"
+          ? (targetReq.workshopId as any)._id
+          : targetReq.workshopId;
+
+      if (status === "approved" && oldStatus !== "approved") {
+        const newAttendee: IAttendance = {
+          requestId: targetReq._id,
+          name: targetReq.name,
+          email: targetReq.email,
+          phone: targetReq.phone,
+          instapayImage: targetReq.instapayImage,
+          checkedIn: false,
+        };
+
+        setCurrent((prev) => {
+          if (!prev._id || (prev._id !== wId && prev._id !== current._id)) return prev;
+          const list = [...(prev.attendance || [])];
+          if (
+            !list.some(
+              (a) =>
+                (a.requestId && a.requestId === requestId) ||
+                a.email === targetReq.email
+            )
+          ) {
+            list.push(newAttendee);
+          }
+          return { ...prev, attendance: list };
+        });
+
+        const updateWorkshopList = (list: IWorkshop[]) =>
+          list.map((w) => {
+            if (w._id === wId || (current._id && w._id === current._id)) {
+              const att = [...(w.attendance || [])];
+              if (
+                !att.some(
+                  (a) =>
+                    (a.requestId && a.requestId === requestId) ||
+                    a.email === targetReq.email
+                )
+              ) {
+                att.push(newAttendee);
+              }
+              return { ...w, attendance: att };
+            }
+            return w;
+          });
+
+        setWorkshops(updateWorkshopList);
+        setAllWorkshops(updateWorkshopList);
+      } else if (status !== "approved" && oldStatus === "approved") {
+        setCurrent((prev) => {
+          if (!prev._id || (prev._id !== wId && prev._id !== current._id)) return prev;
+          return {
+            ...prev,
+            attendance: (prev.attendance || []).filter(
+              (a) =>
+                (a.requestId && a.requestId !== requestId) ||
+                a.email !== targetReq.email
+            ),
+          };
+        });
+
+        const removeAttendeeFromList = (list: IWorkshop[]) =>
+          list.map((w) => {
+            if (w._id === wId || (current._id && w._id === current._id)) {
+              return {
+                ...w,
+                attendance: (w.attendance || []).filter(
+                  (a) =>
+                    (a.requestId && a.requestId !== requestId) ||
+                    a.email !== targetReq.email
+                ),
+              };
+            }
+            return w;
+          });
+
+        setWorkshops(removeAttendeeFromList);
+        setAllWorkshops(removeAttendeeFromList);
+      }
+    }
+
+    // 4. Perform API update in background
     try {
       await axios.patch(`/api/workshop-attendance-requests/${requestId}`, {
         status,
       });
-      if (current._id) {
-        fetchRequests(current._id);
-        fetchSingleWorkshop(current._id);
-      }
-      fetchRequests(); // Always refresh global list
-      // Also refresh background list
-      fetchWorkshops();
     } catch (e: any) {
+      // Revert states if failed
+      setRequests(prevRequests);
+      setAllRequests(prevAllRequests);
+      setCurrent(prevCurrent);
+      setWorkshops(prevWorkshops);
+      setAllWorkshops(prevAllWorkshops);
       alert(e?.response?.data?.error || "Error updating status");
     }
   };
@@ -918,14 +1052,21 @@ export default function WorkshopsPage() {
 
   const handleUpdateReq = async () => {
     if (!currentReq?._id) return;
+    const updated = { ...currentReq };
+    setRequests((prev) =>
+      prev.map((r) => (r._id === updated._id ? (updated as any) : r))
+    );
+    setAllRequests((prev) =>
+      prev.map((r) => (r._id === updated._id ? (updated as any) : r))
+    );
+    setReqModalOpen(false);
+
     try {
-      await axios.patch(`/api/workshop-attendance-requests/${currentReq._id}`, currentReq);
-      setReqModalOpen(false);
-      fetchRequests(); // Refresh global list
-      if (current._id) fetchRequests(current._id); // Refresh workshop specific list if open
-      fetchWorkshops(); // Refresh workshops to sync attendance
+      await axios.patch(`/api/workshop-attendance-requests/${updated._id}`, updated);
     } catch (e: any) {
       alert(e?.response?.data?.error || "Error updating request");
+      if (current._id) fetchRequests(current._id);
+      fetchRequests();
     }
   };
 
@@ -957,7 +1098,7 @@ export default function WorkshopsPage() {
 
   const updatePkgAttendanceStatus = async (
     requestId: string,
-    status: "pending" | "approved" | "rejected" |"archived",
+    status: "pending" | "approved" | "rejected" | "archived",
   ) => {
     try {
       await axios.patch(`/api/workshop-package-requests/${requestId}`, {
@@ -1011,12 +1152,12 @@ export default function WorkshopsPage() {
   // ── CRUD ───────────────────────────────────────────────────────────────────
   const validateDates = (): string | null => {
     if (!current.startDate || !current.endDate) return null;
-    
+
     // Set hours to 0 to compare just the dates accurately
     const wsStart = new Date(current.startDate);
-    wsStart.setHours(0,0,0,0);
+    wsStart.setHours(0, 0, 0, 0);
     const wsEnd = new Date(current.endDate);
-    wsEnd.setHours(23,59,59,999);
+    wsEnd.setHours(23, 59, 59, 999);
 
     if (wsStart.getTime() > wsEnd.getTime()) {
       return "Workshop Start Date cannot be after End Date.";
@@ -1027,9 +1168,9 @@ export default function WorkshopsPage() {
         const sess = current.availableSessions[i];
         if (sess.sessionStartDate) {
           const sStart = new Date(sess.sessionStartDate);
-          sStart.setHours(12,0,0,0); // mid day to avoid timezone edge cases
+          sStart.setHours(12, 0, 0, 0); // mid day to avoid timezone edge cases
           if (sStart.getTime() < wsStart.getTime() || sStart.getTime() > wsEnd.getTime()) {
-            return `Session "${sess.title || i+1}" must have a start date between workshop start and end dates (${toInputDate(current.startDate)} and ${toInputDate(current.endDate)}).`;
+            return `Session "${sess.title || i + 1}" must have a start date between workshop start and end dates (${toInputDate(current.startDate)} and ${toInputDate(current.endDate)}).`;
           }
         }
       }
@@ -1126,8 +1267,8 @@ export default function WorkshopsPage() {
                 key={t}
                 onClick={() => setTopTab(t)}
                 className={`relative px-8 py-4 text-sm font-bold capitalize transition-all border-b-2 whitespace-nowrap
-                  ${topTab === t 
-                    ? "border-primary text-primary bg-primary/5" 
+                  ${topTab === t
+                    ? "border-primary text-primary bg-primary/5"
                     : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50 dark:hover:text-white dark:hover:bg-meta-4"}`}
               >
                 {t.replace("-", " ")}
@@ -1185,152 +1326,152 @@ export default function WorkshopsPage() {
                 <option value="archived">Archived</option>
                 <option value="coming soon">Coming Soon</option>
               </select>
-              
+
 
             </div>
-            
+
 
             {/* Table block remains same below */}
 
-        {/* ── Table ── */}
-        <div className="rounded-2xl border border-stroke bg-white shadow-md dark:border-strokedark dark:bg-boxdark overflow-hidden">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-20 text-gray-400">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-primary dark:border-strokedark dark:border-t-primary" />
-              <p className="font-medium animate-pulse">Loading workshops...</p>
-            </div>
-          ) : workshops.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
-              <MdOutlineWorkspaces size={56} className="opacity-20 mb-2" />
-              <p className="text-base font-medium">No workshops found</p>
-              {search && <p className="text-xs">Try adjusting your search criteria</p>}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-stroke bg-gray-50 dark:border-strokedark dark:bg-meta-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                    <th className="px-5 py-4">Title</th>
-                    <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4">Start Date</th>
-                    <th className="px-5 py-4">End Date</th>
-                    <th className="px-5 py-4 text-center">Slots</th>
-                    <th className="px-5 py-4 text-center">Price</th>
-                    <th className="px-5 py-4 text-center">Sessions</th>
-                    <th className="px-5 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stroke dark:divide-strokedark">
-                  {workshops.map((w) => (
-                    <tr
-                      key={w._id}
-                      className="group transition hover:bg-gray-50 dark:hover:bg-meta-4"
-                    >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          {w.images && w.images.length > 0 ? (
-                            <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-stroke dark:border-strokedark">
-                              <img src={w.images[0]} alt={w.title} className="h-full w-full object-cover" />
+            {/* ── Table ── */}
+            <div className="rounded-2xl border border-stroke bg-white shadow-md dark:border-strokedark dark:bg-boxdark overflow-hidden">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-20 text-gray-400">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-primary dark:border-strokedark dark:border-t-primary" />
+                  <p className="font-medium animate-pulse">Loading workshops...</p>
+                </div>
+              ) : workshops.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
+                  <MdOutlineWorkspaces size={56} className="opacity-20 mb-2" />
+                  <p className="text-base font-medium">No workshops found</p>
+                  {search && <p className="text-xs">Try adjusting your search criteria</p>}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-stroke bg-gray-50 dark:border-strokedark dark:bg-meta-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                        <th className="px-5 py-4">Title</th>
+                        <th className="px-5 py-4">Status</th>
+                        <th className="px-5 py-4">Start Date</th>
+                        <th className="px-5 py-4">End Date</th>
+                        <th className="px-5 py-4 text-center">Slots</th>
+                        <th className="px-5 py-4 text-center">Price</th>
+                        <th className="px-5 py-4 text-center">Sessions</th>
+                        <th className="px-5 py-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stroke dark:divide-strokedark">
+                      {workshops.map((w) => (
+                        <tr
+                          key={w._id}
+                          className="group transition hover:bg-gray-50 dark:hover:bg-meta-4"
+                        >
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              {w.images && w.images.length > 0 ? (
+                                <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-stroke dark:border-strokedark">
+                                  <img src={w.images[0]} alt={w.title} className="h-full w-full object-cover" />
+                                </div>
+                              ) : (
+                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-meta-4">
+                                  <HiOutlinePhoto size={20} />
+                                </div>
+                              )}
+                              <div>
+                                <div className="font-semibold text-black dark:text-white">
+                                  {w.title}
+                                </div>
+                                <div className="text-xs text-gray-400 max-w-[150px] truncate">{w.slug}</div>
+                              </div>
                             </div>
-                          ) : (
-                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-meta-4">
-                              <HiOutlinePhoto size={20} />
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-semibold text-black dark:text-white">
-                              {w.title}
-                            </div>
-                            <div className="text-xs text-gray-400 max-w-[150px] truncate">{w.slug}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        {(() => {
-                          const s = w.status || "active";
-                          const colors: Record<string, string> = {
-                            active: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
-                            draft: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
-                            archived: "bg-gray-200 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400",
-                            "coming soon": "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
-                          };
-                          const dotColors: Record<string, string> = {
-                            active: "bg-green-600",
-                            draft: "bg-blue-600",
-                            archived: "bg-gray-400",
-                            "coming soon": "bg-orange-600",
-                          };
-                          return (
-                            <span
-                              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${colors[s] || colors.active}`}
-                            >
-                              <span
-                                className={`h-1.5 w-1.5 rounded-full animate-pulse ${dotColors[s] || dotColors.active}`}
-                              />
-                              {s}
+                          </td>
+                          <td className="px-5 py-4">
+                            {(() => {
+                              const s = w.status || "active";
+                              const colors: Record<string, string> = {
+                                active: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+                                draft: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+                                archived: "bg-gray-200 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400",
+                                "coming soon": "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
+                              };
+                              const dotColors: Record<string, string> = {
+                                active: "bg-green-600",
+                                draft: "bg-blue-600",
+                                archived: "bg-gray-400",
+                                "coming soon": "bg-orange-600",
+                              };
+                              return (
+                                <span
+                                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${colors[s] || colors.active}`}
+                                >
+                                  <span
+                                    className={`h-1.5 w-1.5 rounded-full animate-pulse ${dotColors[s] || dotColors.active}`}
+                                  />
+                                  {s}
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-5 py-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                            {fmt(w.startDate)}
+                          </td>
+                          <td className="px-5 py-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                            {fmt(w.endDate)}
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <span className="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-300 font-medium">
+                              <FaUsers size={12} className="text-primary/70" />
+                              {w.slots}
                             </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-5 py-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                        {fmt(w.startDate)}
-                      </td>
-                      <td className="px-5 py-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                        {fmt(w.endDate)}
-                      </td>
-                      <td className="px-5 py-4 text-center">
-                        <span className="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-300 font-medium">
-                          <FaUsers size={12} className="text-primary/70" />
-                          {w.slots}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-center text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">
-                        {w.price?.toLocaleString() ?? 0} EGP
-                      </td>
-                      <td className="px-5 py-4 text-center">
-                        <span className="inline-flex items-center justify-center rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                          {(w.availableSessions || []).length}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => openView(w)}
-                            title="View"
-                            className="rounded-lg p-2 text-gray-500 transition hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/40 dark:hover:text-blue-400"
-                          >
-                            <FaEye size={15} />
-                          </button>
-                          <button
-                            onClick={() => generateAttendancePDF(w)}
-                            title="Download Attendance PDF"
-                            className="rounded-lg p-2 text-gray-500 transition hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/40 dark:hover:text-green-400"
-                          >
-                            <FaUsers size={15} />
-                          </button>
-                          <button
-                            onClick={() => openEdit(w)}
-                            title="Edit"
-                            className="rounded-lg p-2 text-gray-500 transition hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/40 dark:hover:text-amber-400"
-                          >
-                            <FaEdit size={15} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(w._id)}
-                            title="Delete"
-                            className="rounded-lg p-2 text-gray-500 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-400"
-                          >
-                            <FaTrash size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          </td>
+                          <td className="px-5 py-4 text-center text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">
+                            {w.price?.toLocaleString() ?? 0} EGP
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <span className="inline-flex items-center justify-center rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                              {(w.availableSessions || []).length}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => openView(w)}
+                                title="View"
+                                className="rounded-lg p-2 text-gray-500 transition hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/40 dark:hover:text-blue-400"
+                              >
+                                <FaEye size={15} />
+                              </button>
+                              <button
+                                onClick={() => generateAttendancePDF(w)}
+                                title="Download Attendance PDF"
+                                className="rounded-lg p-2 text-gray-500 transition hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/40 dark:hover:text-green-400"
+                              >
+                                <FaUsers size={15} />
+                              </button>
+                              <button
+                                onClick={() => openEdit(w)}
+                                title="Edit"
+                                className="rounded-lg p-2 text-gray-500 transition hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/40 dark:hover:text-amber-400"
+                              >
+                                <FaEdit size={15} />
+                              </button>
+                              <button
+                                onClick={() => setDeleteId(w._id)}
+                                title="Delete"
+                                className="rounded-lg p-2 text-gray-500 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-400"
+                              >
+                                <FaTrash size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
             {/* ── Pagination ── */}
             {totalPages > 1 && (
@@ -1364,48 +1505,48 @@ export default function WorkshopsPage() {
               <span className="text-xs font-bold text-gray-500">{packages.length} Total Packages</span>
             </div>
             {packages.length === 0 ? (
-               <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
-                 <MdOutlineWorkspaces size={56} className="opacity-20 mb-2" />
-                 <p className="text-base font-medium">No packages found</p>
-               </div>
+              <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
+                <MdOutlineWorkspaces size={56} className="opacity-20 mb-2" />
+                <p className="text-base font-medium">No packages found</p>
+              </div>
             ) : (
-               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6 bg-gray-50 dark:bg-boxdark/50">
-                 {packages.map(pkg => (
-                    <div key={pkg._id} className="rounded-xl border border-stroke bg-white dark:border-strokedark dark:bg-meta-4 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
-                       {pkg.thumbnail ? (
-                         <div className="h-40 w-full overflow-hidden bg-gray-100 dark:bg-boxdark">
-                           <img src={pkg.thumbnail} alt={pkg.title} className="h-full w-full object-cover" />
-                         </div>
-                       ) : (
-                         <div className="h-40 w-full bg-gray-100 dark:bg-boxdark flex items-center justify-center text-gray-400">
-                           <HiOutlinePhoto size={40} />
-                         </div>
-                       )}
-                       <div className="p-5 flex-1 flex flex-col">
-                          <h3 className="font-bold text-lg text-black dark:text-white mb-1">{pkg.title}</h3>
-                          <p className="text-primary font-black text-xl mb-3">{pkg.price?.toLocaleString()} EGP</p>
-                          <div className="flex gap-2 flex-wrap mb-4">
-                            <span className="px-2.5 py-1 bg-gray-100 dark:bg-boxdark rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300">
-                              {pkg.maxWorkshops} Workshops Allowed
-                            </span>
-                            <span className="px-2.5 py-1 bg-gray-100 dark:bg-boxdark rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300">
-                              {pkg.isAllWorkshopsIncluded ? "All Workshops" : `${pkg.includedWorkshops.length} Specific Workshops`}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-500 line-clamp-2 flex-1">{pkg.description}</p>
-                          
-                          <div className="flex items-center gap-2 mt-5 pt-4 border-t border-stroke dark:border-strokedark">
-                             <button onClick={() => openEditPkg(pkg)} className="flex-1 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-boxdark dark:text-gray-300 dark:hover:bg-gray-700 transition">
-                               Edit
-                             </button>
-                             <button onClick={() => setPkgDeleteId(pkg._id)} className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 transition">
-                               Delete
-                             </button>
-                          </div>
-                       </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6 bg-gray-50 dark:bg-boxdark/50">
+                {packages.map(pkg => (
+                  <div key={pkg._id} className="rounded-xl border border-stroke bg-white dark:border-strokedark dark:bg-meta-4 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
+                    {pkg.thumbnail ? (
+                      <div className="h-40 w-full overflow-hidden bg-gray-100 dark:bg-boxdark">
+                        <img src={pkg.thumbnail} alt={pkg.title} className="h-full w-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="h-40 w-full bg-gray-100 dark:bg-boxdark flex items-center justify-center text-gray-400">
+                        <HiOutlinePhoto size={40} />
+                      </div>
+                    )}
+                    <div className="p-5 flex-1 flex flex-col">
+                      <h3 className="font-bold text-lg text-black dark:text-white mb-1">{pkg.title}</h3>
+                      <p className="text-primary font-black text-xl mb-3">{pkg.price?.toLocaleString()} EGP</p>
+                      <div className="flex gap-2 flex-wrap mb-4">
+                        <span className="px-2.5 py-1 bg-gray-100 dark:bg-boxdark rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          {pkg.maxWorkshops} Workshops Allowed
+                        </span>
+                        <span className="px-2.5 py-1 bg-gray-100 dark:bg-boxdark rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          {pkg.isAllWorkshopsIncluded ? "All Workshops" : `${pkg.includedWorkshops.length} Specific Workshops`}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 line-clamp-2 flex-1">{pkg.description}</p>
+
+                      <div className="flex items-center gap-2 mt-5 pt-4 border-t border-stroke dark:border-strokedark">
+                        <button onClick={() => openEditPkg(pkg)} className="flex-1 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-boxdark dark:text-gray-300 dark:hover:bg-gray-700 transition">
+                          Edit
+                        </button>
+                        <button onClick={() => setPkgDeleteId(pkg._id)} className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 transition">
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                 ))}
-               </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -1414,11 +1555,11 @@ export default function WorkshopsPage() {
           <div className="rounded-2xl border border-stroke bg-white shadow-md dark:border-strokedark dark:bg-boxdark overflow-hidden">
             <div className="border-b border-stroke px-6 py-4 dark:border-strokedark bg-gray-50 dark:bg-meta-4 flex items-center justify-between">
               <h2 className="text-lg font-bold">Attendance Requests</h2>
-              <span className="text-xs font-bold text-gray-500">{allRequests.length} Total Records</span>
+              <span className="text-xs font-bold text-gray-500">{filteredRequestsList.length} Total Records</span>
             </div>
             {requestsLoading ? (
               <div className="py-20 text-center text-gray-400">Loading all requests...</div>
-            ) : allRequests.length === 0 ? (
+            ) : filteredRequestsList.length === 0 ? (
               <div className="py-20 text-center text-gray-400">No requests found</div>
             ) : (
               <div className="overflow-x-auto">
@@ -1427,7 +1568,7 @@ export default function WorkshopsPage() {
                     value={selectedWorkshop}
                     onChange={(e) => {
                       setSelectedWorkshop(e.target.value);
-                      setPage(1);
+                      setRequestsPage(1);
                     }}
                     className="w-full max-w-sm rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white"
                   >
@@ -1443,7 +1584,7 @@ export default function WorkshopsPage() {
                     value={selectedStatus}
                     onChange={(e) => {
                       setSelectedStatus(e.target.value);
-                      setPage(1);
+                      setRequestsPage(1);
                     }}
                     className="w-full max-w-[200px] rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white sm:ml-4 mt-4 sm:mt-0"
                   >
@@ -1458,7 +1599,7 @@ export default function WorkshopsPage() {
                     value={selectedArea}
                     onChange={(e) => {
                       setSelectedArea(e.target.value);
-                      setPage(1);
+                      setRequestsPage(1);
                     }}
                     className="w-full max-w-[200px] rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-strokedark dark:bg-boxdark dark:text-white sm:ml-4 mt-4 sm:mt-0"
                   >
@@ -1469,7 +1610,7 @@ export default function WorkshopsPage() {
                       </option>
                     ))}
                   </select>
-                  
+
                   <button
                     onClick={exportToExcel}
                     className="mt-4 sm:mt-0 sm:ml-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#107c41] px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:opacity-90 hover:scale-105 active:scale-95"
@@ -1492,14 +1633,7 @@ export default function WorkshopsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stroke dark:divide-strokedark">
-                    {allRequests
-                      .filter((req) => {
-                        const matchWorkshop = !selectedWorkshop || (typeof req.workshopId === "object" ? req.workshopId._id : req.workshopId) === selectedWorkshop;
-                        const matchStatus = !selectedStatus || req.status === selectedStatus;
-                        const matchArea = !selectedArea || req.areaOfResidence === selectedArea;
-                        return matchWorkshop && matchStatus && matchArea;
-                      })
-                      .map((req) => (
+                    {paginatedRequestsList.map((req) => (
                       <tr key={req._id} className="hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors">
                         <td className="px-6 py-4">
                           {req.instapayImage ? (
@@ -1507,9 +1641,9 @@ export default function WorkshopsPage() {
                               <img src={req.instapayImage} alt="Payment" className="h-full w-full object-cover" />
                             </a>
                           ) : (
-                             <div className="h-12 w-12 rounded-lg bg-gray-100 dark:bg-boxdark flex items-center justify-center text-gray-300">
-                               <HiOutlinePhoto size={20} />
-                             </div>
+                            <div className="h-12 w-12 rounded-lg bg-gray-100 dark:bg-boxdark flex items-center justify-center text-gray-300">
+                              <HiOutlinePhoto size={20} />
+                            </div>
                           )}
                         </td>
                         <td className="px-6 py-4">
@@ -1533,7 +1667,7 @@ export default function WorkshopsPage() {
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <span className="inline-block max-w-[150px] truncate font-bold text-primary">
-                               {typeof req.workshopId === 'object' ? req.workshopId.title : 'N/A'}
+                              {typeof req.workshopId === 'object' ? req.workshopId.title : 'N/A'}
                             </span>
                             {(() => {
                               const wId = typeof req.workshopId === 'object' ? req.workshopId._id : req.workshopId;
@@ -1550,14 +1684,13 @@ export default function WorkshopsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                           <div className="max-w-[200px] text-[10px] text-gray-500 line-clamp-2">
-                              {req.notes || "—"}
-                           </div>
+                          <div className="max-w-[200px] text-[10px] text-gray-500 line-clamp-2">
+                            {req.notes || "—"}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter shadow-sm ${
-                            req.type === 'waitlist' ? 'bg-orange-100 text-orange-600 border border-orange-200' : 
-                            'bg-blue-100 text-blue-600 border border-blue-200'}`}>
+                          <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter shadow-sm ${req.type === 'waitlist' ? 'bg-orange-100 text-orange-600 border border-orange-200' :
+                              'bg-blue-100 text-blue-600 border border-blue-200'}`}>
                             {req.type}
                           </span>
                         </td>
@@ -1583,52 +1716,127 @@ export default function WorkshopsPage() {
                           {fmt(req.createdAt)}
                         </td>
                         <td className="px-6 py-4">
-                           <div className="flex items-center justify-end gap-2">
-                              {req.status === 'pending'  && (
-                                  <>
-                                    <button onClick={() => updateAttendanceStatus(req._id, 'approved')} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition" title="Approve"><FaCheck size={12}/></button>
-                                    <button onClick={() => updateAttendanceStatus(req._id, 'rejected')} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition" title="Reject"><FaBan size={12}/></button>
-                                    <button onClick={() => updateAttendanceStatus(req._id, 'archived')} className="p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition" title="Archive"><FaEye size={12}/></button>
-                                  </>
-                                )}
-                              {req.status === "approved" && (
-                                <a
-                                  href={`/api/workshop-ticket?token=${encodeURIComponent(
-                                    req.checkInToken || req._id
-                                  )}&download=1`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="p-2 text-gray-400 hover:text-primary transition"
-                                  title="Download Branded QR Entry Pass"
-                                >
-                                  <MdQrCodeScanner size={16} />
-                                </a>
-                              )}
-                              <button 
-                                onClick={() => openReqEdit(req)}
-                                className="p-2 text-gray-400 hover:text-amber-500 transition"
-                                title="Edit Request"
-                              >
-                                <FaEdit size={14} />
-                              </button>
-                              {/* <button 
-                                onClick={() => {
-                                  const wId = typeof req.workshopId === 'object' ? req.workshopId._id : req.workshopId;
-                                  const found = workshops.find(x => x._id === wId);
-                                  if (found) openView(found);
-                                  else fetchSingleWorkshop(wId).then(() => setModalOpen(true));
-                                }}
+                          <div className="flex items-center justify-end gap-2">
+                            {req.status === 'pending' && (
+                              <>
+                                <button onClick={() => updateAttendanceStatus(req._id, 'approved')} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition" title="Approve"><FaCheck size={12} /></button>
+                                <button onClick={() => updateAttendanceStatus(req._id, 'rejected')} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition" title="Reject"><FaBan size={12} /></button>
+                                <button onClick={() => updateAttendanceStatus(req._id, 'archived')} className="p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition" title="Archive"><FaEye size={12} /></button>
+                              </>
+                            )}
+                            {req.status === "approved" && (
+                              <a
+                                href={`/api/workshop-ticket?token=${encodeURIComponent(
+                                  req.checkInToken || req._id
+                                )}&download=1`}
+                                target="_blank"
+                                rel="noreferrer"
                                 className="p-2 text-gray-400 hover:text-primary transition"
-                                title="View Workshop"
+                                title="Download Branded QR Entry Pass"
                               >
-                                <FaEye size={14} />
-                              </button> */}
-                           </div>
+                                <MdQrCodeScanner size={16} />
+                              </a>
+                            )}
+                            <button
+                              onClick={() => openReqEdit(req)}
+                              className="p-2 text-gray-400 hover:text-amber-500 transition"
+                              title="Edit Request"
+                            >
+                              <FaEdit size={14} />
+                            </button>
+                            {/* <button 
+                              onClick={() => {
+                                const wId = typeof req.workshopId === 'object' ? req.workshopId._id : req.workshopId;
+                                const found = workshops.find(x => x._id === wId);
+                                if (found) openView(found);
+                                else fetchSingleWorkshop(wId).then(() => setModalOpen(true));
+                              }}
+                              className="p-2 text-gray-400 hover:text-primary transition"
+                              title="View Workshop"
+                            >
+                              <FaEye size={14} />
+                            </button> */}
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+
+                {/* ── Requests Pagination ── */}
+                {totalRequestsPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 px-6 bg-white dark:bg-boxdark border-t border-stroke dark:border-strokedark text-xs text-gray-500 dark:text-gray-400">
+                    <div>
+                      Showing{" "}
+                      <span className="font-bold text-black dark:text-white">
+                        {(requestsPage - 1) * requestsPerPage + 1}
+                      </span>{" "}
+                      to{" "}
+                      <span className="font-bold text-black dark:text-white">
+                        {Math.min(requestsPage * requestsPerPage, filteredRequestsList.length)}
+                      </span>{" "}
+                      of{" "}
+                      <span className="font-bold text-black dark:text-white">
+                        {filteredRequestsList.length}
+                      </span>{" "}
+                      records
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setRequestsPage((p) => Math.max(1, p - 1))}
+                        disabled={requestsPage === 1}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-stroke bg-white text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none dark:border-strokedark dark:bg-meta-4 dark:text-gray-300"
+                        title="Previous Page"
+                      >
+                        <FaChevronLeft size={10} />
+                      </button>
+
+                      {Array.from({ length: totalRequestsPages }, (_, i) => i + 1).map((p) => {
+                        if (
+                          totalRequestsPages > 7 &&
+                          p !== 1 &&
+                          p !== totalRequestsPages &&
+                          Math.abs(p - requestsPage) > 1
+                        ) {
+                          if (p === 2 || p === totalRequestsPages - 1) {
+                            return (
+                              <span key={p} className="px-1 text-gray-400">
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
+                        }
+
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setRequestsPage(p)}
+                            className={`flex h-8 min-w-[32px] px-2 items-center justify-center rounded-lg text-xs font-bold transition ${
+                              requestsPage === p
+                                ? "bg-primary text-white shadow-sm"
+                                : "border border-stroke bg-white text-gray-600 hover:bg-gray-50 dark:border-strokedark dark:bg-meta-4 dark:text-gray-300"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        onClick={() => setRequestsPage((p) => Math.min(totalRequestsPages, p + 1))}
+                        disabled={requestsPage === totalRequestsPages}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-stroke bg-white text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none dark:border-strokedark dark:bg-meta-4 dark:text-gray-300"
+                        title="Next Page"
+                      >
+                        <FaChevronRight size={10} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1667,9 +1875,9 @@ export default function WorkshopsPage() {
                               <img src={req.instapayImage} alt="Payment" className="h-full w-full object-cover" />
                             </a>
                           ) : (
-                             <div className="h-12 w-12 rounded-lg bg-gray-100 dark:bg-boxdark flex items-center justify-center text-gray-300">
-                               <HiOutlinePhoto size={20} />
-                             </div>
+                            <div className="h-12 w-12 rounded-lg bg-gray-100 dark:bg-boxdark flex items-center justify-center text-gray-300">
+                              <HiOutlinePhoto size={20} />
+                            </div>
                           )}
                         </td>
                         <td className="px-6 py-4">
@@ -1678,37 +1886,37 @@ export default function WorkshopsPage() {
                           <div className="text-[10px] text-gray-400">{req.phone}</div>
                         </td>
                         <td className="px-6 py-4">
-                           <span className="font-bold text-primary">
-                             {typeof req.packageId === 'object' && req.packageId ? req.packageId.title : 'N/A'}
-                           </span>
+                          <span className="font-bold text-primary">
+                            {typeof req.packageId === 'object' && req.packageId ? req.packageId.title : 'N/A'}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1.5">
                             {req.selectedWorkshops && req.selectedWorkshops.length > 0 ? (
-                               req.selectedWorkshops.map((wsObj: any, idx: number) => {
-                                 const wId = typeof wsObj === 'object' ? wsObj._id : wsObj;
-                                 const ws = workshops.find((x) => x._id === wId);
-                                 if (!ws) {
-                                   return <span key={idx} className="text-[10px] text-gray-400 italic">• {typeof wsObj === 'object' ? wsObj.title : wId} (Loading stats...)</span>;
-                                 }
-                                 const filled = ws.attendance?.length || 0;
-                                 const isFull = filled >= ws.slots;
-                                 return (
-                                   <div key={ws._id} className="flex items-center gap-2">
-                                     <span className="text-[11px] font-bold text-black dark:text-white line-clamp-1 max-w-[150px]">• {ws.title}</span>
-                                     <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-500 animate-pulse'}`}>
-                                       {filled} / {ws.slots} {isFull && "(FULL)"}
-                                     </span>
-                                   </div>
-                                 );
-                               })
+                              req.selectedWorkshops.map((wsObj: any, idx: number) => {
+                                const wId = typeof wsObj === 'object' ? wsObj._id : wsObj;
+                                const ws = workshops.find((x) => x._id === wId);
+                                if (!ws) {
+                                  return <span key={idx} className="text-[10px] text-gray-400 italic">• {typeof wsObj === 'object' ? wsObj.title : wId} (Loading stats...)</span>;
+                                }
+                                const filled = ws.attendance?.length || 0;
+                                const isFull = filled >= ws.slots;
+                                return (
+                                  <div key={ws._id} className="flex items-center gap-2">
+                                    <span className="text-[11px] font-bold text-black dark:text-white line-clamp-1 max-w-[150px]">• {ws.title}</span>
+                                    <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-500 animate-pulse'}`}>
+                                      {filled} / {ws.slots} {isFull && "(FULL)"}
+                                    </span>
+                                  </div>
+                                );
+                              })
                             ) : (
-                               <span className="text-[10px] text-gray-400">—</span>
+                              <span className="text-[10px] text-gray-400">—</span>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                           <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase shadow-sm ${statusColors[req.status] || 'bg-gray-100 text-gray-600'}`}>
+                          <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase shadow-sm ${statusColors[req.status] || 'bg-gray-100 text-gray-600'}`}>
                             {req.status}
                           </span>
                         </td>
@@ -1716,17 +1924,17 @@ export default function WorkshopsPage() {
                           {fmt(req.createdAt)}
                         </td>
                         <td className="px-6 py-4">
-                           <div className="flex items-center justify-end gap-2">
-                              {req.status === 'pending' && (
-                                <>
-                                   <button onClick={() => updatePkgAttendanceStatus(req._id, 'approved')} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition" title="Approve"><FaCheck size={12}/></button>
-                                   <button onClick={() => updatePkgAttendanceStatus(req._id, 'rejected')} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition" title="Reject"><FaBan size={12}/></button>
+                          <div className="flex items-center justify-end gap-2">
+                            {req.status === 'pending' && (
+                              <>
+                                <button onClick={() => updatePkgAttendanceStatus(req._id, 'approved')} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition" title="Approve"><FaCheck size={12} /></button>
+                                <button onClick={() => updatePkgAttendanceStatus(req._id, 'rejected')} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition" title="Reject"><FaBan size={12} /></button>
 
-                                </>
-                              )}
-                           </div>
+                              </>
+                            )}
+                          </div>
                         </td>
-                       </tr>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -1799,28 +2007,28 @@ export default function WorkshopsPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard 
-                label="Filtered Workshops" 
-                value={workshops.length} 
-                icon={<MdOutlineWorkspaces className="text-blue-500" size={24}/>}
+              <StatCard
+                label="Filtered Workshops"
+                value={workshops.length}
+                icon={<MdOutlineWorkspaces className="text-blue-500" size={24} />}
                 color="blue"
               />
-              <StatCard 
-                label="Filtered Visits" 
-                value={workshops.reduce((acc, curr) => acc + (curr.visits || 0), 0)} 
-                icon={<FaEye className="text-purple-500" size={24}/>}
+              <StatCard
+                label="Filtered Visits"
+                value={workshops.reduce((acc, curr) => acc + (curr.visits || 0), 0)}
+                icon={<FaEye className="text-purple-500" size={24} />}
                 color="purple"
               />
-              <StatCard 
-                label="Filtered Requests" 
-                value={analyticsData.filteredRequests.length} 
-                icon={<FaUsers className="text-amber-500" size={24}/>}
+              <StatCard
+                label="Filtered Requests"
+                value={analyticsData.filteredRequests.length}
+                icon={<FaUsers className="text-amber-500" size={24} />}
                 color="amber"
               />
-              <StatCard 
-                label="Confirmed Attendees" 
-                value={workshops.reduce((acc, curr) => acc + (curr.attendance?.length || 0), 0)} 
-                icon={<FaCheck className="text-green-500" size={24}/>}
+              <StatCard
+                label="Confirmed Attendees"
+                value={workshops.reduce((acc, curr) => acc + (curr.attendance?.length || 0), 0)}
+                icon={<FaCheck className="text-green-500" size={24} />}
                 color="green"
               />
             </div>
@@ -1922,31 +2130,31 @@ export default function WorkshopsPage() {
             </div>
 
             <div className="rounded-2xl border border-stroke bg-white p-6 shadow-md dark:border-strokedark dark:bg-boxdark">
-                 <h3 className="font-bold text-lg mb-4">Top Visited Workshops</h3>
-                 <div className="overflow-x-auto">
-                   <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left border-b dark:border-strokedark text-gray-400 font-bold uppercase text-[10px]">
-                           <th className="pb-3">Title</th>
-                           <th className="pb-3 text-center">Visits</th>
-                           <th className="pb-3 text-center">Confirmed</th>
-                           <th className="pb-3 text-center">Capacity</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...workshops].sort((a,b) => (b.visits || 0) - (a.visits || 0)).slice(0, 5).map(w => (
-                          <tr key={w._id} className="border-b last:border-0 dark:border-strokedark">
-                            <td className="py-3 font-bold">{w.title}</td>
-                            <td className="py-3 text-center text-primary font-black">{w.visits || 0}</td>
-                            <td className="py-3 text-center font-bold">{w.attendance?.length || 0}</td>
-                            <td className="py-3 text-center opacity-50">{w.slots}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                   </table>
-                 </div>
+              <h3 className="font-bold text-lg mb-4">Top Visited Workshops</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left border-b dark:border-strokedark text-gray-400 font-bold uppercase text-[10px]">
+                      <th className="pb-3">Title</th>
+                      <th className="pb-3 text-center">Visits</th>
+                      <th className="pb-3 text-center">Confirmed</th>
+                      <th className="pb-3 text-center">Capacity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...workshops].sort((a, b) => (b.visits || 0) - (a.visits || 0)).slice(0, 5).map(w => (
+                      <tr key={w._id} className="border-b last:border-0 dark:border-strokedark">
+                        <td className="py-3 font-bold">{w.title}</td>
+                        <td className="py-3 text-center text-primary font-black">{w.visits || 0}</td>
+                        <td className="py-3 text-center font-bold">{w.attendance?.length || 0}</td>
+                        <td className="py-3 text-center opacity-50">{w.slots}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            
+
           </div>
         )}
 
@@ -1981,10 +2189,9 @@ export default function WorkshopsPage() {
                       key={tab}
                       onClick={() => setActiveTab(tab)}
                       className={`flex-1 min-w-[120px] py-3.5 text-sm font-bold capitalize transition border-b-2
-                        ${
-                          activeTab === tab
-                            ? "border-primary text-primary bg-primary/5"
-                            : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50 dark:hover:text-white dark:hover:bg-meta-4"
+                        ${activeTab === tab
+                          ? "border-primary text-primary bg-primary/5"
+                          : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50 dark:hover:text-white dark:hover:bg-meta-4"
                         }`}
                     >
                       {tab === "pass" ? "QR Pass" : tab === "attendance" ? "Requests" : tab}
@@ -1999,11 +2206,10 @@ export default function WorkshopsPage() {
                         </span>
                       )}
                       {tab === "pass" && (
-                        <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          current.hasQrCode !== false
+                        <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${current.hasQrCode !== false
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
                             : "bg-gray-200 text-gray-500 dark:bg-meta-4 dark:text-gray-400"
-                        }`}>
+                          }`}>
                           {current.hasQrCode !== false ? "ON" : "OFF"}
                         </span>
                       )}
@@ -2308,10 +2514,10 @@ export default function WorkshopsPage() {
                                   </div>
                                   <div className="flex items-center gap-3 text-xs font-medium text-gray-500">
                                     {sess.sessionStartDate ? (
-                                      <span className="flex items-center gap-1.5"><FaCalendarAlt className="text-primary/70"/>{fmt(sess.sessionStartDate)}</span>
+                                      <span className="flex items-center gap-1.5"><FaCalendarAlt className="text-primary/70" />{fmt(sess.sessionStartDate)}</span>
                                     ) : <span className="italic text-gray-400">No Date</span>}
-                                    
-                                    {sess.startTime && <span className="flex items-center gap-1.5"><FaClock className="text-primary/70"/>{sess.startTime}</span>}
+
+                                    {sess.startTime && <span className="flex items-center gap-1.5"><FaClock className="text-primary/70" />{sess.startTime}</span>}
                                     {sess.duration > 0 && <span className="bg-gray-200 dark:bg-boxdark px-1.5 py-0.5 rounded">{sess.duration} mins</span>}
                                   </div>
                                 </div>
@@ -2361,7 +2567,7 @@ export default function WorkshopsPage() {
                                       />
                                     </Field>
                                   </div>
-                                  
+
                                   <Field label="Start Date" required>
                                     <div className="relative">
                                       <FaCalendarAlt
@@ -2557,9 +2763,8 @@ export default function WorkshopsPage() {
                                 <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
                                   {current.qrTemplateImage ? "Custom Template Preview" : "Default Template Preview"}
                                 </span>
-                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                                  current.qrTemplateImage ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
-                                }`}>
+                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${current.qrTemplateImage ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
+                                  }`}>
                                   {current.qrTemplateImage ? "Custom Active" : "Default Brand"}
                                 </span>
                               </div>
@@ -2619,9 +2824,9 @@ export default function WorkshopsPage() {
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="flex items-start gap-4 flex-1">
                                   {req.instapayImage ? (
-                                    <a 
-                                      href={req.instapayImage} 
-                                      target="_blank" 
+                                    <a
+                                      href={req.instapayImage}
+                                      target="_blank"
                                       rel="noopener noreferrer"
                                       className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-stroke dark:border-strokedark shadow-md hover:scale-105 transition-transform bg-white"
                                     >
@@ -2632,7 +2837,7 @@ export default function WorkshopsPage() {
                                       <HiOutlinePhoto size={28} />
                                     </div>
                                   )}
-                                  
+
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                                       <p className="font-bold text-black dark:text-white text-base tracking-wide truncate">
@@ -2643,9 +2848,8 @@ export default function WorkshopsPage() {
                                           {req.age} yrs
                                         </span>
                                       )}
-                                      <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter shadow-sm ${
-                                        req.type === 'waitlist' ? 'bg-orange-100 text-orange-600 border border-orange-200' : 
-                                        'bg-blue-100 text-blue-600 border border-blue-200'}`}>
+                                      <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter shadow-sm ${req.type === 'waitlist' ? 'bg-orange-100 text-orange-600 border border-orange-200' :
+                                          'bg-blue-100 text-blue-600 border border-blue-200'}`}>
                                         {req.type}
                                       </span>
                                     </div>
@@ -2672,7 +2876,7 @@ export default function WorkshopsPage() {
                                     </div>
                                   </div>
                                 </div>
-                                
+
                                 <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 border-t sm:border-t-0 pt-3 sm:pt-0 border-stroke dark:border-strokedark">
                                   <span
                                     className={`rounded-xl px-4 py-1 text-[11px] font-bold uppercase tracking-wider shadow-sm ${statusColors[req.status]}`}
@@ -2681,7 +2885,7 @@ export default function WorkshopsPage() {
                                   </span>
                                   {!isReadOnly && (
                                     <div className="flex items-center gap-1 bg-white dark:bg-boxdark rounded-lg shadow-sm border border-stroke dark:border-strokedark p-1">
-                                      {req.status !== "approved" &&  (
+                                      {req.status !== "approved" && (
                                         <button
                                           onClick={() =>
                                             updateAttendanceStatus(req._id, "approved")
@@ -2692,7 +2896,7 @@ export default function WorkshopsPage() {
                                           <FaCheck size={14} />
                                         </button>
                                       )}
-                                      {req.status !== "rejected"  && (
+                                      {req.status !== "rejected" && (
                                         <button
                                           onClick={() =>
                                             updateAttendanceStatus(req._id, "rejected")
@@ -2758,7 +2962,7 @@ export default function WorkshopsPage() {
                           {(current.attendance || []).length} Confirmed
                         </span>
                       </div>
-                      
+
                       {(current.attendance || []).length === 0 ? (
                         <div className="rounded-2xl bg-gray-50 py-10 text-center dark:bg-meta-4">
                           <FaUsers size={24} className="mx-auto mb-2 text-gray-300" />
@@ -2769,9 +2973,9 @@ export default function WorkshopsPage() {
                           {(current.attendance || []).map((person, idx) => (
                             <div key={idx} className="group relative flex items-center gap-3 rounded-xl border border-stroke bg-white px-4 py-3 dark:border-strokedark dark:bg-boxdark transition hover:border-primary/30 hover:shadow-sm">
                               {person.instapayImage ? (
-                                <a 
-                                  href={person.instapayImage} 
-                                  target="_blank" 
+                                <a
+                                  href={person.instapayImage}
+                                  target="_blank"
                                   rel="noopener noreferrer"
                                   className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-stroke dark:border-strokedark hover:scale-110 transition-transform"
                                 >
@@ -2883,7 +3087,7 @@ export default function WorkshopsPage() {
                 <h2 className="text-xl font-bold text-white tracking-wide">Edit Attendance Request</h2>
                 <button onClick={() => setReqModalOpen(false)} className="rounded-full p-1.5 text-white/80 transition hover:text-white hover:bg-white/20"><FaTimes /></button>
               </div>
-              
+
               <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
                 <div className="grid grid-cols-1 gap-4">
                   <Field label="Requester Name" required>
@@ -2985,12 +3189,12 @@ export default function WorkshopsPage() {
                         <div className="flex items-center gap-4">
                           {currentReq.instapayImage ? (
                             <div className="group relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl border border-stroke shadow-sm transition hover:border-amber-500">
-                              <img 
-                                src={currentReq.instapayImage} 
-                                alt="Proof" 
-                                className="h-full w-full object-cover" 
+                              <img
+                                src={currentReq.instapayImage}
+                                alt="Proof"
+                                className="h-full w-full object-cover"
                               />
-                              <button 
+                              <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3003,9 +3207,9 @@ export default function WorkshopsPage() {
                               <div className="absolute inset-x-0 bottom-0 bg-black/40 py-1 text-center text-[9px] font-bold text-white backdrop-blur-sm">
                                 Change Image
                               </div>
-                              <button 
-                                type="button" 
-                                onClick={() => open()} 
+                              <button
+                                type="button"
+                                onClick={() => open()}
                                 className="absolute inset-0 z-10"
                               />
                             </div>
@@ -3068,9 +3272,9 @@ export default function WorkshopsPage() {
                 <h3 className="text-lg font-bold text-black dark:text-white">
                   {attendeeMode === "add" ? "Add New Attendee" : "Edit Attendee"}
                 </h3>
-                <button 
-                   onClick={() => setAttendeeModalOpen(false)}
-                   className="text-gray-400 hover:text-black dark:hover:text-white"
+                <button
+                  onClick={() => setAttendeeModalOpen(false)}
+                  className="text-gray-400 hover:text-black dark:hover:text-white"
                 >
                   <FaTimes />
                 </button>
@@ -3117,12 +3321,12 @@ export default function WorkshopsPage() {
                       <div className="flex items-center gap-4">
                         {tempAttendee.instapayImage ? (
                           <div className="group relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-stroke shadow-sm transition hover:border-primary">
-                            <img 
-                              src={tempAttendee.instapayImage} 
-                              alt="Proof" 
-                              className="h-full w-full object-cover" 
+                            <img
+                              src={tempAttendee.instapayImage}
+                              alt="Proof"
+                              className="h-full w-full object-cover"
                             />
-                            <button 
+                            <button
                               type="button"
                               onClick={() => setTempAttendee({ ...tempAttendee, instapayImage: "" })}
                               className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition group-hover:opacity-100"
@@ -3132,9 +3336,9 @@ export default function WorkshopsPage() {
                             <div className="absolute inset-x-0 bottom-0 bg-black/40 py-0.5 text-center text-[8px] font-bold text-white backdrop-blur-sm">
                               Change
                             </div>
-                            <button 
-                              type="button" 
-                              onClick={() => open()} 
+                            <button
+                              type="button"
+                              onClick={() => open()}
                               className="absolute inset-0 z-10"
                             />
                           </div>
@@ -3206,8 +3410,8 @@ export default function WorkshopsPage() {
                 >
                   {deleteLoading ? (
                     <span className="flex items-center justify-center gap-2">
-                       <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                       Deleting...
+                      <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      Deleting...
                     </span>
                   ) : "Yes, Delete"}
                 </button>
@@ -3244,47 +3448,47 @@ export default function WorkshopsPage() {
                   </Field>
                 </div>
 
-                 <Field label="Package Description" required>
-                    <textarea rows={3} value={currentPkg.description || ""} onChange={(e) => setPkgField("description", e.target.value)} className={inputCls(false)} />
-                 </Field>
+                <Field label="Package Description" required>
+                  <textarea rows={3} value={currentPkg.description || ""} onChange={(e) => setPkgField("description", e.target.value)} className={inputCls(false)} />
+                </Field>
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                   <Field label="Total Allowed Workshops (Max for user)" required>
-                      <input type="number" min={1} value={currentPkg.maxWorkshops ?? 1} onChange={(e) => setPkgField("maxWorkshops", Number(e.target.value))} className={inputCls(false)} />
-                   </Field>
+                  <Field label="Total Allowed Workshops (Max for user)" required>
+                    <input type="number" min={1} value={currentPkg.maxWorkshops ?? 1} onChange={(e) => setPkgField("maxWorkshops", Number(e.target.value))} className={inputCls(false)} />
+                  </Field>
                 </div>
 
                 <div className="border border-stroke dark:border-strokedark rounded-xl p-5 bg-gray-50 dark:bg-meta-4 mt-2">
-                   <label className="flex items-center gap-3 cursor-pointer">
-                     <input type="checkbox" checked={currentPkg.isAllWorkshopsIncluded || false} onChange={(e) => setPkgField("isAllWorkshopsIncluded", e.target.checked)} className="w-5 h-5 accent-primary" />
-                     <span className="font-bold text-sm text-black dark:text-white">Allow choosing from ALL workshops</span>
-                   </label>
-                   {!currentPkg.isAllWorkshopsIncluded && (
-                     <div className="mt-4 animate-fade-in">
-                       <Field label="Select Included Workshops">
-                         <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                           {allWorkshops.length === 0 ? <span className="text-xs text-gray-500">No workshops available</span> : allWorkshops.map(w => {
-                             const isSelected = (currentPkg.includedWorkshops || []).includes(w._id);
-                             return (
-                               <label key={w._id} className="flex flex-row items-center gap-2 cursor-pointer text-sm">
-                                 <input type="checkbox" checked={isSelected} onChange={(e) => {
-                                      const arr = [...(currentPkg.includedWorkshops || [])];
-                                      if (e.target.checked) arr.push(w._id);
-                                      else {
-                                         const idx = arr.indexOf(w._id);
-                                         if (idx > -1) arr.splice(idx, 1);
-                                      }
-                                      setPkgField("includedWorkshops", arr);
-                                   }}
-                                 />
-                                 <span>{w.title}</span>
-                               </label>
-                             );
-                           })}
-                         </div>
-                       </Field>
-                     </div>
-                   )}
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={currentPkg.isAllWorkshopsIncluded || false} onChange={(e) => setPkgField("isAllWorkshopsIncluded", e.target.checked)} className="w-5 h-5 accent-primary" />
+                    <span className="font-bold text-sm text-black dark:text-white">Allow choosing from ALL workshops</span>
+                  </label>
+                  {!currentPkg.isAllWorkshopsIncluded && (
+                    <div className="mt-4 animate-fade-in">
+                      <Field label="Select Included Workshops">
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                          {allWorkshops.length === 0 ? <span className="text-xs text-gray-500">No workshops available</span> : allWorkshops.map(w => {
+                            const isSelected = (currentPkg.includedWorkshops || []).includes(w._id);
+                            return (
+                              <label key={w._id} className="flex flex-row items-center gap-2 cursor-pointer text-sm">
+                                <input type="checkbox" checked={isSelected} onChange={(e) => {
+                                  const arr = [...(currentPkg.includedWorkshops || [])];
+                                  if (e.target.checked) arr.push(w._id);
+                                  else {
+                                    const idx = arr.indexOf(w._id);
+                                    if (idx > -1) arr.splice(idx, 1);
+                                  }
+                                  setPkgField("includedWorkshops", arr);
+                                }}
+                                />
+                                <span>{w.title}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </Field>
+                    </div>
+                  )}
                 </div>
 
                 <Field label="Thumbnail Image" required>

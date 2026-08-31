@@ -4,6 +4,7 @@ import { ConnectDB } from "@/config/db";
 import { NextResponse } from "next/server";
 import { sendMail } from "@/app/lib/email";
 import { WorkshopConfirmationMail } from "@/app/emails/WorkshopConfirmationMail";
+import { WorkshopRejectionMail } from "@/app/emails/WorkshopRejectionMail";
 import crypto from "crypto";
 
 const loadDB = async () => {
@@ -104,9 +105,30 @@ export async function PATCH(req: Request, { params }: RouteContext) {
           },
         },
       });
-    } else if (newStatus === "approved" && oldStatus === "approved") {
-      // If staying approved but info updated, we might need to update the attendance entry
-      // This part is a bit more complex with $set and array filters, but for now simple pull/push or just skip
+    }
+
+    // Send Rejection / Waitlist Email if status changed to rejected
+    if (newStatus === "rejected" && oldStatus !== "rejected") {
+      const workshop = await WorkshopModel.findById(request.workshopId);
+      if (workshop) {
+        try {
+          const mailBody = WorkshopRejectionMail({
+            participantName: updateData.name || request.name,
+            workshopTitle: workshop.title,
+          });
+
+          await sendMail({
+            to: updateData.email || request.email,
+            name: updateData.name || request.name,
+            subject: `Update regarding your registration for ${workshop.title}`,
+            body: mailBody,
+            from: "Thegoodnewsms@gmail.com",
+          });
+          console.log(`Rejection/waitlist email sent to ${updateData.email || request.email}`);
+        } catch (mailError) {
+          console.error("Failed to send rejection email:", mailError);
+        }
+      }
     }
 
     // Update the request document with all fields provided
