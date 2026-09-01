@@ -5,12 +5,14 @@ export async function sendMail({
   subject,
   body,
   from,
+  replyTo,
 }: {
   to: string;
   name: string;
   subject: string;
   body: string;
   from: string;
+  replyTo?: string;
 }) {
   const { SMTP_EMAIL, SMTP_PASSWORD } = process.env;
 
@@ -49,6 +51,7 @@ export async function sendMail({
     const sendResult = await transport.sendMail({
       from: from,
       to,
+      replyTo: replyTo || from,
       subject,
       html: body,
     });

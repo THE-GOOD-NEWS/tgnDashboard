@@ -87,8 +87,8 @@ export async function PATCH(req: Request, { params }: RouteContext) {
             name: updateData.name || request.name,
             subject: `Confirmation: ${workshop.title} Booking accepted!`,
             body: mailBody,
-            from: "Thegoodnewsms@gmail.com",
-            // from: "noreply@thegoodnews-me.com",
+            from: '"The Good News" <info@thegoodnews-me.com>',
+            replyTo: "info@thegoodnews-me.com",
           });
           console.log(`Confirmation email sent to ${updateData.email || request.email}`);
         } catch (mailError) {

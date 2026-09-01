@@ -272,6 +272,9 @@ export const WorkshopConfirmationMail = ({
                                         }
 
 																				<p style="margin: 0; margin-bottom: 16px;">Please make sure to <strong>arrive on time and do not be late</strong>, so you can get the full benefit of the workshop.</p>
+																				<p style="margin: 0; margin-bottom: 16px; background-color: #fff0f6; border-left: 4px solid #ff99cc; padding: 12px 16px; border-radius: 4px; font-size: 14px; color: #444444; line-height: 1.5;">
+																					If you won’t be able to attend for any reason, please send us an email at <a href="mailto:info@thegoodnews-me.com" style="color: #d63384; font-weight: bold; text-decoration: underline;">info@thegoodnews-me.com</a> (or reply directly to this email) so we can give your spot to someone else.
+																				</p>
 																				<p style="margin: 0; margin-bottom: 16px;">If you have any questions, feel free to contact us.</p>
 																				<p style="margin: 0; margin-bottom: 16px;">We look forward to seeing you!</p>
 																				<p style="margin: 0;">Best regards,<br>The Good News Team</p>
