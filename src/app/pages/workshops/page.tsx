@@ -62,6 +62,7 @@ const AREA_OF_RESIDENCE_OPTIONS = [
   "Maadi",
   "Giza (ElMohandiseen, Agouza, Zamalek..etc)",
   "6th of October",
+  "Other City"
 ] as const;
 
 type AreaOfResidence = (typeof AREA_OF_RESIDENCE_OPTIONS)[number];
@@ -1690,7 +1691,7 @@ export default function WorkshopsPage() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter shadow-sm ${req.type === 'waitlist' ? 'bg-orange-100 text-orange-600 border border-orange-200' :
-                              'bg-blue-100 text-blue-600 border border-blue-200'}`}>
+                            'bg-blue-100 text-blue-600 border border-blue-200'}`}>
                             {req.type}
                           </span>
                         </td>
@@ -1814,11 +1815,10 @@ export default function WorkshopsPage() {
                             key={p}
                             type="button"
                             onClick={() => setRequestsPage(p)}
-                            className={`flex h-8 min-w-[32px] px-2 items-center justify-center rounded-lg text-xs font-bold transition ${
-                              requestsPage === p
+                            className={`flex h-8 min-w-[32px] px-2 items-center justify-center rounded-lg text-xs font-bold transition ${requestsPage === p
                                 ? "bg-primary text-white shadow-sm"
                                 : "border border-stroke bg-white text-gray-600 hover:bg-gray-50 dark:border-strokedark dark:bg-meta-4 dark:text-gray-300"
-                            }`}
+                              }`}
                           >
                             {p}
                           </button>
@@ -2207,8 +2207,8 @@ export default function WorkshopsPage() {
                       )}
                       {tab === "pass" && (
                         <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${current.hasQrCode !== false
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                            : "bg-gray-200 text-gray-500 dark:bg-meta-4 dark:text-gray-400"
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          : "bg-gray-200 text-gray-500 dark:bg-meta-4 dark:text-gray-400"
                           }`}>
                           {current.hasQrCode !== false ? "ON" : "OFF"}
                         </span>
@@ -2849,7 +2849,7 @@ export default function WorkshopsPage() {
                                         </span>
                                       )}
                                       <span className={`text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter shadow-sm ${req.type === 'waitlist' ? 'bg-orange-100 text-orange-600 border border-orange-200' :
-                                          'bg-blue-100 text-blue-600 border border-blue-200'}`}>
+                                        'bg-blue-100 text-blue-600 border border-blue-200'}`}>
                                         {req.type}
                                       </span>
                                     </div>

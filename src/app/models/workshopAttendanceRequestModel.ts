@@ -9,6 +9,7 @@ export const AREA_OF_RESIDENCE_OPTIONS = [
   "Maadi",
   "Giza (ElMohandiseen, Agouza, Zamalek..etc)",
   "6th of October",
+  "Other City",
 ] as const;
 
 export type AreaOfResidence = (typeof AREA_OF_RESIDENCE_OPTIONS)[number];
