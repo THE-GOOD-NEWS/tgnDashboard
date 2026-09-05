@@ -208,7 +208,8 @@ export async function PATCH(req: Request, { params }: RouteContext) {
             name: updateData.name || request.name,
             subject: `Update regarding your registration for ${workshop.title}`,
             body: mailBody,
-            from: "Thegoodnewsms@gmail.com",
+            from: '"The Good News" <info@thegoodnews-me.com>',
+            replyTo: "info@thegoodnews-me.com",
           });
           console.log(`Rejection/waitlist email sent to ${updateData.email || request.email}`);
         } catch (mailError) {
