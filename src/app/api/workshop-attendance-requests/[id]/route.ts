@@ -14,6 +14,95 @@ loadDB();
 
 type RouteContext = { params: { id: string } };
 
+// Helper to extract the most accurate session, date, and start time from a workshop
+function extractWorkshopSchedule(workshop: any) {
+  const sessions = Array.isArray(workshop.availableSessions)
+    ? [...workshop.availableSessions].filter(Boolean)
+    : [];
+
+  // Sort sessions chronologically by sessionStartDate
+  sessions.sort((a: any, b: any) => {
+    const dateA = a.sessionStartDate ? new Date(a.sessionStartDate).getTime() : 0;
+    const dateB = b.sessionStartDate ? new Date(b.sessionStartDate).getTime() : 0;
+    return dateA - dateB;
+  });
+
+  // Find the earliest session with a valid startTime, or fallback to the first chronological session
+  const sessionWithTime = sessions.find(
+    (s: any) => typeof s.startTime === "string" && s.startTime.trim() !== ""
+  );
+  const firstSession = sessions[0];
+
+  let rawTime = sessionWithTime?.startTime?.trim() || firstSession?.startTime?.trim() || "";
+  const duration = sessionWithTime?.duration || firstSession?.duration || 120;
+
+  // Determine effective workshop start date (prefer earliest session date if set)
+  let effectiveDate: Date;
+  if (firstSession?.sessionStartDate) {
+    effectiveDate = new Date(firstSession.sessionStartDate);
+  } else if (workshop.startDate) {
+    effectiveDate = new Date(workshop.startDate);
+  } else {
+    effectiveDate = new Date();
+  }
+
+  // If rawTime is empty, check if effectiveDate or workshop.startDate has non-midnight hours/minutes embedded
+  if (!rawTime) {
+    const checkDate = (d: any) => {
+      if (!d) return "";
+      const dt = new Date(d);
+      if (!isNaN(dt.getTime())) {
+        const hours = dt.getHours();
+        const minutes = dt.getMinutes();
+        if (hours !== 0 || minutes !== 0) {
+          return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+        }
+      }
+      return "";
+    };
+    rawTime = checkDate(firstSession?.sessionStartDate) || checkDate(workshop.startDate) || "";
+  }
+
+  // Format display time nicely (e.g. "14:00" -> "2:00 PM")
+  let formattedTime = "TBD";
+  if (rawTime) {
+    const match24 = rawTime.match(/^(\d{1,2}):(\d{2})$/);
+    const match12 = rawTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+    if (match24) {
+      const hour = parseInt(match24[1], 10);
+      const minute = match24[2];
+      if (hour >= 0 && hour <= 23) {
+        const ampm = hour >= 12 ? "PM" : "AM";
+        const displayHour = hour % 12 || 12;
+        formattedTime = `${displayHour}:${minute} ${ampm}`;
+      } else {
+        formattedTime = rawTime;
+      }
+    } else if (match12) {
+      const hour = parseInt(match12[1], 10);
+      const minute = match12[2];
+      const ampm = match12[3].toUpperCase();
+      formattedTime = `${hour}:${minute} ${ampm}`;
+    } else {
+      formattedTime = rawTime;
+    }
+  }
+
+  const formattedStartDate = effectiveDate.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  return {
+    time: formattedTime,
+    durationMinutes: duration,
+    startDate: formattedStartDate,
+    rawDate: effectiveDate,
+  };
+}
+
 // ─── GET /api/workshop-attendance-requests/[id] ─────────────────────────────
 export async function GET(_req: Request, { params }: RouteContext) {
   try {
@@ -67,20 +156,17 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
         // Send Confirmation Email
         try {
-          const firstSession = workshop.availableSessions?.[0];
+          const schedule = extractWorkshopSchedule(workshop);
           const mailBody = WorkshopConfirmationMail({
             participantName: updateData.name || request.name,
             workshopTitle: workshop.title,
-            startDate: workshop.startDate.toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            }),
-            time: firstSession?.startTime || "TBD",
+            startDate: schedule.startDate,
+            time: schedule.time,
             location: workshop.location?.altText || "Our Studio",
-            rawDate: workshop.startDate,
+            rawDate: schedule.rawDate,
             checkInToken: checkInToken,
             hasQrCode: workshop.hasQrCode !== false,
+            durationMinutes: schedule.durationMinutes,
           });
 
           await sendMail({

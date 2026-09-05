@@ -2,11 +2,12 @@ interface IMailData {
   participantName: string;
   workshopTitle: string;
   startDate: string; // Pre-formatted for display: e.g. "25 March 2026"
-  time: string;      // e.g. "15:00"
+  time: string;      // e.g. "15:00" or "3:00 PM"
   location: string;
   rawDate: Date;     // For the calendar link
   checkInToken?: string;
   hasQrCode?: boolean;
+  durationMinutes?: number;
 }
 
 export const WorkshopConfirmationMail = ({
@@ -18,25 +19,52 @@ export const WorkshopConfirmationMail = ({
   rawDate,
   checkInToken,
   hasQrCode = true,
+  durationMinutes = 120,
 }: IMailData) => {
   // Helper to generate Google Calendar link
   const encodedTitle = encodeURIComponent(workshopTitle);
   const encodedLocation = encodeURIComponent(location);
   
   // Format for Google Calendar: YYYYMMDDTHHMMSSZ
-  const [h, m] = time.includes(":") ? time.split(":").map(Number) : [9, 0];
-  const startDateTime = new Date(rawDate);
-  startDateTime.setHours(h, m, 0);
-  
-  const endDateTime = new Date(startDateTime);
-  endDateTime.setHours(startDateTime.getHours() + 2);
+  let h = 9;
+  let m = 0;
+  if (time && time !== "TBD") {
+    const match = time.match(/(\d{1,2}):(\d{2})(?:\s*(AM|PM))?/i);
+    if (match) {
+      let hour = parseInt(match[1], 10);
+      const minute = parseInt(match[2], 10);
+      const meridian = match[3]?.toUpperCase();
+      if (meridian === "PM" && hour < 12) hour += 12;
+      if (meridian === "AM" && hour === 12) hour = 0;
+      if (!isNaN(hour) && !isNaN(minute)) {
+        h = hour;
+        m = minute;
+      }
+    }
+  }
 
-  const formatCal = (d: Date) => d.toISOString().replace(/-|:|\.\d+/g, "");
+  const startDateTime = new Date(rawDate);
+  if (!isNaN(startDateTime.getTime())) {
+    startDateTime.setHours(h, m, 0, 0);
+  }
+  
+  const duration = typeof durationMinutes === "number" && durationMinutes > 0 ? durationMinutes : 120;
+  const endDateTime = new Date(startDateTime);
+  if (!isNaN(endDateTime.getTime())) {
+    endDateTime.setMinutes(startDateTime.getMinutes() + duration);
+  }
+
+  const formatCal = (d: Date) => {
+    if (isNaN(d.getTime())) return "";
+    return d.toISOString().replace(/-|:|\.\d+/g, "");
+  };
   
   const startStamp = formatCal(startDateTime);
   const endStamp = formatCal(endDateTime);
 
-  const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedTitle}&dates=${startStamp}/${endStamp}&location=${encodedLocation}`;
+  const calendarUrl = startStamp && endStamp
+    ? `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedTitle}&dates=${startStamp}/${endStamp}&location=${encodedLocation}`
+    : "#";
 
   // Branded Ticket Image with QR Code embedded inside template (only if workshop has QR enabled)
   const baseUrl = (
