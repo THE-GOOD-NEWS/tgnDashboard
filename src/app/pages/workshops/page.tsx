@@ -29,6 +29,7 @@ import Link from "next/link";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import Swal from "sweetalert2";
 
 // ─── Types (match model exactly) ─────────────────────────────────────────────
 interface ISession {
@@ -533,6 +534,58 @@ export default function WorkshopsPage() {
     return filteredRequestsList.slice(start, start + requestsPerPage);
   }, [filteredRequestsList, requestsPage, requestsPerPage]);
 
+  // Requests bulk selection state
+  const [selectedReqIds, setSelectedReqIds] = useState<string[]>([]);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+  const currentPageReqIds = useMemo(
+    () => paginatedRequestsList.map((r) => r._id),
+    [paginatedRequestsList]
+  );
+  const isAllPageSelected =
+    currentPageReqIds.length > 0 &&
+    currentPageReqIds.every((id) => selectedReqIds.includes(id));
+  const isSomePageSelected = currentPageReqIds.some((id) =>
+    selectedReqIds.includes(id)
+  );
+
+  const toggleSelectAllPage = () => {
+    if (isAllPageSelected) {
+      setSelectedReqIds((prev) =>
+        prev.filter((id) => !currentPageReqIds.includes(id))
+      );
+    } else {
+      setSelectedReqIds((prev) =>
+        Array.from(new Set([...prev, ...currentPageReqIds]))
+      );
+    }
+  };
+
+  const toggleSelectReq = (id: string) => {
+    setSelectedReqIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedReqIds(filteredRequestsList.map((r) => r._id));
+  };
+
+  const selectPendingOnPage = () => {
+    const pendingIds = paginatedRequestsList
+      .filter((r) => r.status === "pending")
+      .map((r) => r._id);
+    setSelectedReqIds((prev) => Array.from(new Set([...prev, ...pendingIds])));
+  };
+
+  const clearSelection = () => {
+    setSelectedReqIds([]);
+  };
+
+  useEffect(() => {
+    setSelectedReqIds([]);
+  }, [topTab]);
+
   // Package Requests state
   const [pkgRequests, setPkgRequests] = useState<IWorkshopPackageRequest[]>([]);
   const [pkgRequestsLoading, setPkgRequestsLoading] = useState(false);
@@ -729,6 +782,134 @@ export default function WorkshopsPage() {
       : "All_Workshop_Requests.xlsx";
 
     XLSX.writeFile(workbook, fileName);
+  };
+
+  const handleBulkAction = async (
+    status: "approved" | "rejected" | "archived"
+  ) => {
+    if (selectedReqIds.length === 0) return;
+
+    const count = selectedReqIds.length;
+    const actionWord =
+      status === "approved"
+        ? "Accept & Approve"
+        : status === "rejected"
+        ? "Reject"
+        : "Archive";
+    const actionColor =
+      status === "approved"
+        ? "#10B981"
+        : status === "rejected"
+        ? "#EF4444"
+        : "#6B7280";
+    const emailNotice =
+      status === "approved"
+        ? `This will accept <b>${count}</b> request(s) and automatically send personalized confirmation emails with QR tickets to each participant via Brevo.`
+        : status === "rejected"
+        ? `This will mark <b>${count}</b> request(s) as rejected and dispatch notification emails via Brevo.`
+        : `This will mark <b>${count}</b> request(s) as archived.`;
+
+    const confirmResult = await Swal.fire({
+      title: `<span style="font-size: 20px; font-weight: 700;">Bulk ${actionWord}?</span>`,
+      html: `
+        <div style="font-size: 14px; color: #4B5563; line-height: 1.6; text-align: center;">
+          ${emailNotice}
+          <br/><br/>
+          <span style="font-weight: 600; color: #111827;">Are you sure you want to proceed?</span>
+        </div>
+      `,
+      icon: status === "approved" ? "question" : "warning",
+      showCancelButton: true,
+      confirmButtonColor: actionColor,
+      cancelButtonColor: "#9CA3AF",
+      confirmButtonText: `Yes, ${actionWord} (${count})`,
+      cancelButtonText: "Cancel",
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
+    setBulkActionLoading(true);
+
+    Swal.fire({
+      title: `Processing ${count} requests...`,
+      html: `
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 10px;">
+          <p style="font-size: 13px; color: #6B7280;">
+            Updating database records and dispatching bulk Brevo emails...
+          </p>
+        </div>
+      `,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    try {
+      const res = await axios.patch("/api/workshop-attendance-requests/bulk", {
+        requestIds: selectedReqIds,
+        status,
+      });
+
+      const data = res.data;
+
+      // Optimistically update requests in local state
+      setRequests((prev) =>
+        prev.map((r) =>
+          selectedReqIds.includes(r._id) ? { ...r, status } : r
+        )
+      );
+      setAllRequests((prev) =>
+        prev.map((r) =>
+          selectedReqIds.includes(r._id) ? { ...r, status } : r
+        )
+      );
+
+      // Re-fetch in background to ensure all counters & attendees are in exact sync
+      fetchRequests();
+      fetchWorkshops();
+
+      setSelectedReqIds([]);
+
+      Swal.fire({
+        icon: "success",
+        title: "Bulk Operation Complete!",
+        html: `
+          <div style="font-size: 14px; color: #374151; text-align: center; line-height: 1.6;">
+            <p>Successfully processed <b>${data.updatedCount || count}</b> request(s).</p>
+            ${
+              data.emailsSent !== undefined
+                ? `<p style="margin-top: 8px; color: #059669; font-weight: bold;">
+                     ✉️ ${data.emailsSent} Brevo email(s) dispatched successfully!
+                   </p>`
+                : ""
+            }
+            ${
+              data.emailsFailed > 0
+                ? `<p style="margin-top: 4px; color: #DC2626; font-size: 12px;">
+                     ⚠️ ${data.emailsFailed} email(s) could not be delivered.
+                   </p>`
+                : ""
+            }
+          </div>
+        `,
+        confirmButtonColor: "#5B1C1E",
+      });
+    } catch (err: any) {
+      console.error("Bulk action failed:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Operation Failed",
+        text:
+          err?.response?.data?.error ||
+          "An error occurred while processing bulk requests.",
+        confirmButtonColor: "#5B1C1E",
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
   };
 
   const generateAttendancePDF = async (workshop: IWorkshop) => {
@@ -1612,6 +1793,18 @@ export default function WorkshopsPage() {
                     ))}
                   </select>
 
+                  {paginatedRequestsList.some((r) => r.status === "pending") && (
+                    <button
+                      type="button"
+                      onClick={selectPendingOnPage}
+                      className="mt-4 sm:mt-0 sm:ml-3 inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs font-bold text-amber-700 shadow-sm transition hover:bg-amber-100 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300 whitespace-nowrap"
+                      title="Quickly select all pending requests on this page"
+                    >
+                      <FaCheck size={10} className="text-amber-600 dark:text-amber-400" />
+                      Select Pending on Page ({paginatedRequestsList.filter((r) => r.status === "pending").length})
+                    </button>
+                  )}
+
                   <button
                     onClick={exportToExcel}
                     className="mt-4 sm:mt-0 sm:ml-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#107c41] px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:opacity-90 hover:scale-105 active:scale-95"
@@ -1620,9 +1813,95 @@ export default function WorkshopsPage() {
                     Export to Excel
                   </button>
                 </div>
+
+                {/* ── Bulk Action Toolbar ── */}
+                {selectedReqIds.length > 0 && (
+                  <div className="m-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 shadow-sm dark:border-primary/40 dark:bg-primary/10 animate-fade-in">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 min-w-[32px] items-center justify-center rounded-xl bg-primary px-2.5 text-xs font-black text-white shadow-sm">
+                        {selectedReqIds.length}
+                      </span>
+                      <div>
+                        <p className="text-sm font-bold text-black dark:text-white leading-tight">
+                          {selectedReqIds.length === 1
+                            ? "1 request selected"
+                            : `${selectedReqIds.length} requests selected`}
+                        </p>
+                        {selectedReqIds.length < filteredRequestsList.length && (
+                          <button
+                            type="button"
+                            onClick={selectAllFiltered}
+                            className="text-[11px] font-semibold text-primary underline hover:opacity-80 transition"
+                          >
+                            Select all {filteredRequestsList.length} filtered records
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => handleBulkAction("approved")}
+                        disabled={bulkActionLoading}
+                        className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow transition hover:bg-emerald-700 disabled:opacity-50 active:scale-95"
+                        title="Accept selected requests and send branded confirmation tickets via Brevo"
+                      >
+                        <FaCheck size={11} />
+                        Accept Selected ({selectedReqIds.length})
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleBulkAction("rejected")}
+                        disabled={bulkActionLoading}
+                        className="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow transition hover:bg-rose-700 disabled:opacity-50 active:scale-95"
+                        title="Reject selected requests and send rejection notifications via Brevo"
+                      >
+                        <FaBan size={11} />
+                        Reject Selected ({selectedReqIds.length})
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleBulkAction("archived")}
+                        disabled={bulkActionLoading}
+                        className="flex items-center gap-1.5 rounded-xl bg-gray-600 px-3.5 py-2.5 text-xs font-bold text-white shadow transition hover:bg-gray-700 disabled:opacity-50 active:scale-95"
+                        title="Mark selected requests as archived"
+                      >
+                        <FaEye size={11} />
+                        Archive ({selectedReqIds.length})
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={clearSelection}
+                        disabled={bulkActionLoading}
+                        className="rounded-xl border border-stroke bg-white px-3 py-2.5 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-100 transition dark:border-strokedark dark:bg-boxdark dark:text-gray-300"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-meta-4 text-left text-[10px] font-black uppercase text-gray-400 border-b dark:border-strokedark">
+                      <th className="px-4 py-4 w-12 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isAllPageSelected}
+                          ref={(el) => {
+                            if (el) {
+                              el.indeterminate = isSomePageSelected && !isAllPageSelected;
+                            }
+                          }}
+                          onChange={toggleSelectAllPage}
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                          title="Select / Deselect all on this page"
+                        />
+                      </th>
                       <th className="px-6 py-4">Receipt</th>
                       <th className="px-6 py-4">Requester</th>
                       <th className="px-6 py-4">Program</th>
@@ -1635,7 +1914,22 @@ export default function WorkshopsPage() {
                   </thead>
                   <tbody className="divide-y divide-stroke dark:divide-strokedark">
                     {paginatedRequestsList.map((req) => (
-                      <tr key={req._id} className="hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors">
+                      <tr
+                        key={req._id}
+                        className={`hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors ${
+                          selectedReqIds.includes(req._id)
+                            ? "bg-primary/5 dark:bg-primary/10"
+                            : ""
+                        }`}
+                      >
+                        <td className="px-4 py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedReqIds.includes(req._id)}
+                            onChange={() => toggleSelectReq(req._id)}
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                          />
+                        </td>
                         <td className="px-6 py-4">
                           {req.instapayImage ? (
                             <a href={req.instapayImage} target="_blank" rel="noreferrer" className="block h-12 w-12 overflow-hidden rounded-lg border border-stroke dark:border-strokedark shadow-sm hover:scale-110 transition-transform bg-white">
