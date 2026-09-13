@@ -31,6 +31,51 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import Swal from "sweetalert2";
 
+// ─── Arabic PDF Font Helpers ──────────────────────────────────────────────────
+let cachedAmiriRegularBase64: string | null = null;
+let cachedAmiriBoldBase64: string | null = null;
+
+async function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i += 8192) {
+    binary += String.fromCharCode.apply(
+      null,
+      bytes.subarray(i, Math.min(i + 8192, len)) as unknown as number[]
+    );
+  }
+  return btoa(binary);
+}
+
+async function loadAmiriFonts(doc: jsPDF): Promise<boolean> {
+  try {
+    if (!cachedAmiriRegularBase64) {
+      const res = await fetch("/fonts/Amiri-Regular.ttf");
+      if (!res.ok) throw new Error("Failed to fetch Amiri-Regular.ttf");
+      const buffer = await res.arrayBuffer();
+      cachedAmiriRegularBase64 = await arrayBufferToBase64(buffer);
+    }
+    if (!cachedAmiriBoldBase64) {
+      const res = await fetch("/fonts/Amiri-Bold.ttf");
+      if (!res.ok) throw new Error("Failed to fetch Amiri-Bold.ttf");
+      const buffer = await res.arrayBuffer();
+      cachedAmiriBoldBase64 = await arrayBufferToBase64(buffer);
+    }
+
+    doc.addFileToVFS("Amiri-Regular.ttf", cachedAmiriRegularBase64);
+    doc.addFont("Amiri-Regular.ttf", "Amiri", "normal");
+
+    doc.addFileToVFS("Amiri-Bold.ttf", cachedAmiriBoldBase64);
+    doc.addFont("Amiri-Bold.ttf", "Amiri", "bold");
+
+    return true;
+  } catch (err) {
+    console.warn("Could not load Arabic font (Amiri):", err);
+    return false;
+  }
+}
+
 // ─── Types (match model exactly) ─────────────────────────────────────────────
 interface ISession {
   _id?: string;
@@ -299,6 +344,21 @@ const fmt = (iso: string) =>
     })
     : "—";
 
+const fmtDateTime = (iso?: string | Date) => {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return `${d.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })} at ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+  } catch {
+    return "—";
+  }
+};
+
 const statusColors: Record<IWorkshopAttendanceRequest["status"], string> = {
   pending: "bg-yellow-100 text-yellow-700",
   approved: "bg-green-100 text-green-700",
@@ -506,6 +566,12 @@ export default function WorkshopsPage() {
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [reqModalOpen, setReqModalOpen] = useState(false);
   const [currentReq, setCurrentReq] = useState<IWorkshopAttendanceRequest | null>(null);
+
+  // Dedicated Attendance / Check-In Details Modal
+  const [attendanceModalWorkshop, setAttendanceModalWorkshop] = useState<IWorkshop | null>(null);
+  const [attendanceModalLoading, setAttendanceModalLoading] = useState(false);
+  const [attendanceSearchQuery, setAttendanceSearchQuery] = useState("");
+  const [attendanceStatusFilter, setAttendanceStatusFilter] = useState<"all" | "checked" | "unchecked">("all");
 
   // Requests Tab Pagination & Filter computation
   const [requestsPage, setRequestsPage] = useState(1);
@@ -794,20 +860,20 @@ export default function WorkshopsPage() {
       status === "approved"
         ? "Accept & Approve"
         : status === "rejected"
-        ? "Reject"
-        : "Archive";
+          ? "Reject"
+          : "Archive";
     const actionColor =
       status === "approved"
         ? "#10B981"
         : status === "rejected"
-        ? "#EF4444"
-        : "#6B7280";
+          ? "#EF4444"
+          : "#6B7280";
     const emailNotice =
       status === "approved"
         ? `This will accept <b>${count}</b> request(s) and automatically send personalized confirmation emails with QR tickets to each participant via Brevo.`
         : status === "rejected"
-        ? `This will mark <b>${count}</b> request(s) as rejected and dispatch notification emails via Brevo.`
-        : `This will mark <b>${count}</b> request(s) as archived.`;
+          ? `This will mark <b>${count}</b> request(s) as rejected and dispatch notification emails via Brevo.`
+          : `This will mark <b>${count}</b> request(s) as archived.`;
 
     const confirmResult = await Swal.fire({
       title: `<span style="font-size: 20px; font-weight: 700;">Bulk ${actionWord}?</span>`,
@@ -879,20 +945,18 @@ export default function WorkshopsPage() {
         html: `
           <div style="font-size: 14px; color: #374151; text-align: center; line-height: 1.6;">
             <p>Successfully processed <b>${data.updatedCount || count}</b> request(s).</p>
-            ${
-              data.emailsSent !== undefined
-                ? `<p style="margin-top: 8px; color: #059669; font-weight: bold;">
+            ${data.emailsSent !== undefined
+            ? `<p style="margin-top: 8px; color: #059669; font-weight: bold;">
                      ✉️ ${data.emailsSent} Brevo email(s) dispatched successfully!
                    </p>`
-                : ""
-            }
-            ${
-              data.emailsFailed > 0
-                ? `<p style="margin-top: 4px; color: #DC2626; font-size: 12px;">
+            : ""
+          }
+            ${data.emailsFailed > 0
+            ? `<p style="margin-top: 4px; color: #DC2626; font-size: 12px;">
                      ⚠️ ${data.emailsFailed} email(s) could not be delivered.
                    </p>`
-                : ""
-            }
+            : ""
+          }
           </div>
         `,
         confirmButtonColor: "#5B1C1E",
@@ -912,35 +976,69 @@ export default function WorkshopsPage() {
     }
   };
 
-  const generateAttendancePDF = async (workshop: IWorkshop) => {
+  const generateAttendancePDF = async (
+    workshop: IWorkshop,
+    customAttendees?: IAttendance[],
+    filterLabel?: string,
+  ) => {
     try {
       const doc = new jsPDF({
         compress: true,
       });
       const primaryColor: [number, number, number] = [91, 28, 30]; // #5B1C1E in RGB
 
+      // Load Arabic font support (Amiri)
+      const fontsLoaded = await loadAmiriFonts(doc);
+      const fontName = fontsLoaded ? "Amiri" : "helvetica";
+      doc.setFont(fontName, "normal");
+
+      const formatText = (text: any): string => {
+        if (text === undefined || text === null) return "";
+        const str = String(text);
+        if (/[\u0600-\u06FF]/.test(str)) {
+          try {
+            return (doc as any).processArabic ? (doc as any).processArabic(str) : str;
+          } catch {
+            return str;
+          }
+        }
+        return str;
+      };
+
       // Load Logo
       try {
         const img = new Image();
         img.src = '/theGoodSpace/10.png';
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
+        await new Promise((resolve) => {
+          if (img.complete) return resolve(null);
+          img.onload = () => resolve(null);
+          img.onerror = () => resolve(null);
+          setTimeout(() => resolve(null), 1500);
         });
 
-        // Center the logo at the top
-        const logoWidth = 50; // Increased as requested
-        const logoHeight = (img.height * logoWidth) / img.width;
-        doc.addImage(img, 'PNG', (210 - logoWidth) / 2, 10, logoWidth, logoHeight, undefined, 'FAST');
+        if (img.width && img.height) {
+          const logoWidth = 50;
+          const logoHeight = (img.height * logoWidth) / img.width;
+          doc.addImage(img, 'PNG', (210 - logoWidth) / 2, 10, logoWidth, logoHeight, undefined, 'FAST');
+        }
       } catch (err) {
         console.warn("Logo failed to load for PDF, skipping...", err);
       }
 
+      const attendees = customAttendees ?? workshop.attendance ?? [];
+      const totalCheckedIn = (workshop.attendance || []).filter(a => a.checkedIn).length;
+      const isFiltered = Boolean(filterLabel && filterLabel !== "All");
+
       // Header (Pushed down to make room for logo)
+      doc.setFont(fontName, "bold");
       doc.setFontSize(22);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text("Attendance List", 105, 55, { align: "center" });
+      const headerTitle = isFiltered
+        ? `Attendance List (${filterLabel})`
+        : "Attendance List";
+      doc.text(formatText(headerTitle), 105, 55, { align: "center" });
 
+      doc.setFont(fontName, "normal");
       doc.setFontSize(10);
       doc.setTextColor(120);
       doc.text("Generated on " + new Date().toLocaleString(), 105, 62, { align: "center" });
@@ -949,41 +1047,100 @@ export default function WorkshopsPage() {
       doc.setDrawColor(210);
       doc.line(14, 68, 196, 68);
 
+      doc.setFont(fontName, "bold");
       doc.setFontSize(14);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text(workshop.title, 14, 78);
+      doc.text(formatText(workshop.title), 14, 78);
 
+      doc.setFont(fontName, "normal");
       doc.setFontSize(10);
       doc.setTextColor(100);
-      doc.text(`Location: ${workshop.location?.altText || 'N/A'}`, 14, 86);
+      doc.text(formatText(`Location: ${workshop.location?.altText || 'N/A'}`), 14, 86);
       doc.text(`Schedule: ${fmt(workshop.startDate)} to ${fmt(workshop.endDate)}`, 14, 91);
       doc.text(`Capacity: ${workshop.slots} slots`, 14, 96);
-      doc.text(`Current Attendees: ${workshop.attendance?.length || 0}`, 14, 101);
+      doc.text(`Total Confirmed: ${workshop.attendance?.length || 0}`, 14, 101);
+      doc.text(`Checked In: ${totalCheckedIn} / ${workshop.attendance?.length || 0}`, 14, 106);
+
+      let startY = 112;
+      if (isFiltered) {
+        doc.setFont(fontName, "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.text(formatText(`Export Filter: ${filterLabel} (${attendees.length} attendee${attendees.length === 1 ? '' : 's'})`), 14, 111);
+        startY = 117;
+      }
 
       // Table
-      const tableColumn = ["#", "Attendee Name", "Email Address", "Phone Number"];
-      const tableRows = (workshop.attendance || []).map((att, index) => [
+      const tableColumn = ["#", "Attendee Name", "Email Address", "Phone Number", "Check-in Status", "Checked In At"];
+      const tableRows = attendees.map((att, index) => [
         index + 1,
-        att.name,
-        att.email,
-        att.phone
+        formatText(att.name),
+        att.email || "—",
+        att.phone || "—",
+        att.checkedIn ? "Checked In" : "Not Checked In",
+        att.checkedInAt ? fmtDateTime(att.checkedInAt) : "—"
       ]);
 
       autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
-        startY: 108,
+        startY,
         theme: 'striped',
-        headStyles: { fillColor: primaryColor, fontStyle: 'bold', textColor: [255, 255, 255] as [number, number, number] },
-        styles: { fontSize: 9, cellPadding: 3.5 },
+        headStyles: {
+          fillColor: primaryColor,
+          font: fontName,
+          fontStyle: 'bold',
+          textColor: [255, 255, 255] as [number, number, number],
+        },
+        styles: {
+          font: fontName,
+          fontSize: 9,
+          cellPadding: 3.5,
+          textColor: [40, 40, 40],
+        },
         alternateRowStyles: { fillColor: [248, 245, 245] },
-        margin: { top: 108 }
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 14, cellPadding: { top: 3.2, bottom: 3.2, left: 1, right: 1 } },
+          1: { cellWidth: 42 },
+          2: { cellWidth: 46 },
+          3: { cellWidth: 32 },
+          4: { halign: 'center', cellWidth: 25 },
+          5: { halign: 'center', cellWidth: 23 },
+        },
+        showHead: 'everyPage',
+        margin: { top: 15, left: 14, right: 14, bottom: 15 },
       });
 
-      doc.save(`Attendance_List_${workshop.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+      // Add clean page numbers to every page (e.g. Page 1 of 3)
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFont(fontName, "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(
+          `Page ${i} of ${pageCount}`,
+          doc.internal.pageSize.width / 2,
+          doc.internal.pageSize.height - 8,
+          { align: "center" }
+        );
+      }
+
+      const cleanTitle = (workshop.title || "Workshop")
+        .replace(/[\\/:*?"<>|]/g, "_")
+        .trim();
+      const cleanFilter = isFiltered
+        ? `_${filterLabel!.replace(/[\\/:*?"<>|]/g, "_").trim()}`
+        : "";
+      doc.save(`Attendance_List_${cleanTitle}${cleanFilter}.pdf`);
     } catch (error) {
       console.error("PDF Generation error:", error);
-      alert("Error generating PDF. Please check the console for details.");
+      Swal.fire({
+        icon: "error",
+        title: "PDF Generation Error",
+        text: "Error generating PDF. Please check the console for details.",
+        confirmButtonColor: "#5B1C1E",
+      });
     }
   };
 
@@ -1063,12 +1220,68 @@ export default function WorkshopsPage() {
     setExpandedSession(null);
   };
 
-  const openView = (w: IWorkshop) => {
+  const openView = (w: IWorkshop, tab: ActiveTab = "details") => {
     setCurrent({ ...w });
     setModalMode("view");
-    setActiveTab("details");
+    setActiveTab(tab);
     setModalOpen(true);
     setExpandedSession(null);
+  };
+
+  const openAttendanceModal = async (workshop: IWorkshop) => {
+    setAttendanceModalWorkshop(workshop);
+    setAttendanceSearchQuery("");
+    setAttendanceStatusFilter("all");
+    try {
+      setAttendanceModalLoading(true);
+      const res = await axios.get(`/api/workshops/${workshop._id}`);
+      if (res.data?.data) {
+        setAttendanceModalWorkshop(res.data.data);
+      }
+    } catch (err) {
+      console.warn("Could not refresh workshop attendance:", err);
+    } finally {
+      setAttendanceModalLoading(false);
+    }
+  };
+
+  const closeAttendanceModal = () => {
+    setAttendanceModalWorkshop(null);
+    setAttendanceSearchQuery("");
+    setAttendanceStatusFilter("all");
+  };
+
+  const exportAttendanceExcel = (
+    workshop: IWorkshop,
+    customAttendees?: IAttendance[],
+    filterLabel?: string,
+  ) => {
+    try {
+      const attendees = customAttendees ?? workshop.attendance ?? [];
+      const isFiltered = Boolean(filterLabel && filterLabel !== "All");
+      const data = attendees.map((att, idx) => ({
+        "#": idx + 1,
+        Name: att.name,
+        Email: att.email,
+        Phone: att.phone,
+        "Check-In Token": att.checkInToken || "—",
+        "Checked In": att.checkedIn ? "Yes" : "No",
+        "Checked In At": att.checkedInAt ? fmtDateTime(att.checkedInAt) : "—",
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      const sheetName = isFiltered ? filterLabel!.slice(0, 31) : "Attendance";
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      const cleanTitle = (workshop.title || "Workshop")
+        .replace(/[\\/:*?"<>|]/g, "_")
+        .trim();
+      const cleanFilter = isFiltered
+        ? `_${filterLabel!.replace(/[\\/:*?"<>|]/g, "_").trim()}`
+        : "";
+      XLSX.writeFile(wb, `${cleanTitle}_Attendance${cleanFilter}.xlsx`);
+    } catch (err) {
+      console.error("Excel export error:", err);
+    }
   };
 
   const closeModal = () => {
@@ -1538,6 +1751,7 @@ export default function WorkshopsPage() {
                         <th className="px-5 py-4">Start Date</th>
                         <th className="px-5 py-4">End Date</th>
                         <th className="px-5 py-4 text-center">Slots</th>
+                        <th className="px-5 py-4 text-center">Checked In</th>
                         <th className="px-5 py-4 text-center">Price</th>
                         <th className="px-5 py-4 text-center">Sessions</th>
                         <th className="px-5 py-4 text-right">Actions</th>
@@ -1607,6 +1821,33 @@ export default function WorkshopsPage() {
                               {w.slots}
                             </span>
                           </td>
+                          <td className="px-5 py-4 text-center">
+                            {(() => {
+                              const confirmed = w.attendance?.length || 0;
+                              const checkedIn = (w.attendance || []).filter((a) => a.checkedIn).length;
+                              const pct = confirmed > 0 ? Math.round((checkedIn / confirmed) * 100) : 0;
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => openAttendanceModal(w)}
+                                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold transition hover:scale-105 active:scale-95 shadow-sm border cursor-pointer ${
+                                    checkedIn > 0
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+                                      : confirmed > 0
+                                      ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300"
+                                      : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200 dark:bg-meta-4 dark:border-strokedark dark:text-gray-400"
+                                  }`}
+                                  title="Click to view full attendance & check-ins, download PDF, or export Excel"
+                                >
+                                  <FaCheck size={9} className={checkedIn > 0 ? "text-emerald-600 dark:text-emerald-400" : "opacity-40"} />
+                                  <span>{checkedIn} / {confirmed}</span>
+                                  {confirmed > 0 && (
+                                    <span className="text-[10px] opacity-75 font-semibold">({pct}%)</span>
+                                  )}
+                                </button>
+                              );
+                            })()}
+                          </td>
                           <td className="px-5 py-4 text-center text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">
                             {w.price?.toLocaleString() ?? 0} EGP
                           </td>
@@ -1619,15 +1860,15 @@ export default function WorkshopsPage() {
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => openView(w)}
-                                title="View"
+                                title="View Workshop Details"
                                 className="rounded-lg p-2 text-gray-500 transition hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/40 dark:hover:text-blue-400"
                               >
                                 <FaEye size={15} />
                               </button>
                               <button
-                                onClick={() => generateAttendancePDF(w)}
-                                title="Download Attendance PDF"
-                                className="rounded-lg p-2 text-gray-500 transition hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/40 dark:hover:text-green-400"
+                                onClick={() => openAttendanceModal(w)}
+                                title="View Attendance, Check-ins, Download PDF & Excel"
+                                className="rounded-lg p-2 text-gray-500 transition hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/40 dark:hover:text-emerald-400"
                               >
                                 <FaUsers size={15} />
                               </button>
@@ -1916,11 +2157,10 @@ export default function WorkshopsPage() {
                     {paginatedRequestsList.map((req) => (
                       <tr
                         key={req._id}
-                        className={`hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors ${
-                          selectedReqIds.includes(req._id)
+                        className={`hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors ${selectedReqIds.includes(req._id)
                             ? "bg-primary/5 dark:bg-primary/10"
                             : ""
-                        }`}
+                          }`}
                       >
                         <td className="px-4 py-4 text-center">
                           <input
@@ -2110,8 +2350,8 @@ export default function WorkshopsPage() {
                             type="button"
                             onClick={() => setRequestsPage(p)}
                             className={`flex h-8 min-w-[32px] px-2 items-center justify-center rounded-lg text-xs font-bold transition ${requestsPage === p
-                                ? "bg-primary text-white shadow-sm"
-                                : "border border-stroke bg-white text-gray-600 hover:bg-gray-50 dark:border-strokedark dark:bg-meta-4 dark:text-gray-300"
+                              ? "bg-primary text-white shadow-sm"
+                              : "border border-stroke bg-white text-gray-600 hover:bg-gray-50 dark:border-strokedark dark:bg-meta-4 dark:text-gray-300"
                               }`}
                           >
                             {p}
@@ -2361,8 +2601,13 @@ export default function WorkshopsPage() {
                       {analyticsData.topRequested.map(w => {
                         const rCount = analyticsData.requestCounts[w._id] || 0;
                         return (
-                          <tr key={w._id} className="border-b last:border-0 dark:border-strokedark">
-                            <td className="py-3 font-bold truncate max-w-[120px]">{w.title}</td>
+                          <tr
+                            key={w._id}
+                            onClick={() => openAttendanceModal(w)}
+                            className="border-b last:border-0 dark:border-strokedark cursor-pointer hover:bg-primary/5 dark:hover:bg-meta-4/40 transition-colors group"
+                            title="Click to view attendance and check-in details"
+                          >
+                            <td className="py-3 font-bold truncate max-w-[120px] group-hover:text-primary transition-colors">{w.title}</td>
                             <td className="py-3 text-center font-black text-primary">{rCount}</td>
                           </tr>
                         );
@@ -2424,7 +2669,17 @@ export default function WorkshopsPage() {
             </div>
 
             <div className="rounded-2xl border border-stroke bg-white p-6 shadow-md dark:border-strokedark dark:bg-boxdark">
-              <h3 className="font-bold text-lg mb-4">Top Visited Workshops</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 className="font-bold text-lg">Top Visited Workshops</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Click any row to view full attendance, who checked in (checkedIn: true), and check-in times
+                  </p>
+                </div>
+                <span className="text-[11px] font-bold text-primary bg-primary/10 dark:bg-primary/20 px-2.5 py-1 rounded-full self-start sm:self-auto flex items-center gap-1.5">
+                  <FaUsers size={11} /> Click row for attendance
+                </span>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -2432,18 +2687,62 @@ export default function WorkshopsPage() {
                       <th className="pb-3">Title</th>
                       <th className="pb-3 text-center">Visits</th>
                       <th className="pb-3 text-center">Confirmed</th>
+                      <th className="pb-3 text-center">Checked In</th>
                       <th className="pb-3 text-center">Capacity</th>
+                      <th className="pb-3 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {[...workshops].sort((a, b) => (b.visits || 0) - (a.visits || 0)).slice(0, 5).map(w => (
-                      <tr key={w._id} className="border-b last:border-0 dark:border-strokedark">
-                        <td className="py-3 font-bold">{w.title}</td>
-                        <td className="py-3 text-center text-primary font-black">{w.visits || 0}</td>
-                        <td className="py-3 text-center font-bold">{w.attendance?.length || 0}</td>
-                        <td className="py-3 text-center opacity-50">{w.slots}</td>
-                      </tr>
-                    ))}
+                    {(allWorkshops.length > 0 ? allWorkshops : workshops)
+                      .slice()
+                      .sort((a, b) => (b.visits || 0) - (a.visits || 0))
+                      .slice(0, 5)
+                      .map((w) => {
+                        const confirmed = w.attendance?.length || 0;
+                        const checkedInCount = (w.attendance || []).filter((a) => a.checkedIn).length;
+                        const checkInPct = confirmed > 0 ? Math.round((checkedInCount / confirmed) * 100) : 0;
+                        return (
+                          <tr
+                            key={w._id}
+                            onClick={() => openAttendanceModal(w)}
+                            className="border-b last:border-0 dark:border-strokedark cursor-pointer hover:bg-primary/5 dark:hover:bg-meta-4/40 transition-colors group"
+                            title="Click to view attendee check-in details"
+                          >
+                            <td className="py-3.5 font-bold group-hover:text-primary transition-colors">
+                              <div className="flex items-center gap-2">
+                                <span className="text-black dark:text-white group-hover:text-primary transition-colors">
+                                  {w.title}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3.5 text-center text-primary font-black">{w.visits || 0}</td>
+                            <td className="py-3.5 text-center font-bold">{confirmed}</td>
+                            <td className="py-3.5 text-center">
+                              <span
+                                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold transition ${
+                                  checkedInCount > 0
+                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
+                                    : "bg-gray-100 text-gray-500 dark:bg-meta-4 dark:text-gray-400"
+                                }`}
+                              >
+                                <FaCheck size={9} />
+                                <span>
+                                  {checkedInCount} / {confirmed}
+                                </span>
+                                {confirmed > 0 && (
+                                  <span className="opacity-75 text-[10px]">({checkInPct}%)</span>
+                                )}
+                              </span>
+                            </td>
+                            <td className="py-3.5 text-center opacity-50">{w.slots}</td>
+                            <td className="py-3.5 text-right">
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                View Attendance <FaChevronRight size={10} />
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
@@ -3251,10 +3550,16 @@ export default function WorkshopsPage() {
                             </button>
                           )}
                         </div>
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-600 dark:bg-meta-4 dark:text-gray-300">
-                          <FaCheck size={10} className="text-green-500" />
-                          {(current.attendance || []).length} Confirmed
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-600 dark:bg-meta-4 dark:text-gray-300">
+                            <FaUsers size={10} className="text-primary" />
+                            {(current.attendance || []).length} Confirmed
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                            <FaCheck size={10} />
+                            {(current.attendance || []).filter(a => a.checkedIn).length} Checked In
+                          </span>
+                        </div>
                       </div>
 
                       {(current.attendance || []).length === 0 ? (
@@ -3293,6 +3598,12 @@ export default function WorkshopsPage() {
                                     </span>
                                   )}
                                 </div>
+                                {person.checkedIn && person.checkedInAt && (
+                                  <div className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                    <FaClock size={9} />
+                                    <span>Checked in: {fmtDateTime(person.checkedInAt)}</span>
+                                  </div>
+                                )}
                                 <p className="text-[10px] text-gray-500 truncate">{person.email}</p>
                                 <div className="flex items-center gap-2 text-[10px] text-gray-400">
                                   <span>{person.phone}</span>
@@ -3824,6 +4135,337 @@ export default function WorkshopsPage() {
             </div>
           </div>
         )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            Dedicated Workshop Attendance & Check-In Modal
+        ══════════════════════════════════════════════════════════════════ */}
+        {attendanceModalWorkshop && (() => {
+          const w = attendanceModalWorkshop;
+          const allAttendees = w.attendance || [];
+          const confirmedCount = allAttendees.length;
+          const checkedInCount = allAttendees.filter((a) => a.checkedIn).length;
+          const notCheckedInCount = confirmedCount - checkedInCount;
+          const checkInPct = confirmedCount > 0 ? Math.round((checkedInCount / confirmedCount) * 100) : 0;
+
+          const q = attendanceSearchQuery.toLowerCase().trim();
+          const filteredAttendees = allAttendees.filter((att) => {
+            const matchesQuery =
+              !q ||
+              att.name.toLowerCase().includes(q) ||
+              att.email.toLowerCase().includes(q) ||
+              att.phone.toLowerCase().includes(q) ||
+              (att.checkInToken && att.checkInToken.toLowerCase().includes(q));
+
+            const matchesStatus =
+              attendanceStatusFilter === "all" ||
+              (attendanceStatusFilter === "checked" && att.checkedIn) ||
+              (attendanceStatusFilter === "unchecked" && !att.checkedIn);
+
+            return matchesQuery && matchesStatus;
+          });
+
+          const filterLabel =
+            attendanceStatusFilter === "checked"
+              ? "Checked In"
+              : attendanceStatusFilter === "unchecked"
+              ? "Not Checked In"
+              : "All";
+          const exportLabel = q ? `${filterLabel} (Filtered)` : filterLabel;
+
+          return (
+            <div className="fixed md:pl-72.5 inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-6 backdrop-blur-sm sm:items-center">
+              <div className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl dark:bg-boxdark flex flex-col max-h-[92vh] border border-stroke dark:border-strokedark overflow-hidden">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between bg-primary px-6 py-4.5 text-white shrink-0">
+                  <div className="min-w-0 pr-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+                        Attendance & Check-in
+                      </span>
+                      {attendanceModalLoading && (
+                        <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      )}
+                    </div>
+                    <h2 className="text-lg sm:text-xl font-bold truncate tracking-wide text-white">
+                      {w.title}
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-white/80 mt-1">
+                      <span className="flex items-center gap-1">
+                        <FaCalendarAlt size={11} /> {fmt(w.startDate as any)} {w.endDate ? `to ${fmt(w.endDate as any)}` : ""}
+                      </span>
+                      {w.location?.altText && (
+                        <span className="flex items-center gap-1">
+                          <FaMapMarkerAlt size={11} /> {w.location.altText}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => generateAttendancePDF(w, filteredAttendees, exportLabel)}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 hover:bg-white/25 px-3 py-2 text-xs font-bold text-white transition border border-white/20 shadow-sm"
+                      title={`Download PDF for ${exportLabel} (${filteredAttendees.length} attendees)`}
+                    >
+                      <FaDownload size={11} /> PDF ({filteredAttendees.length})
+                    </button>
+                    <button
+                      onClick={() => exportAttendanceExcel(w, filteredAttendees, exportLabel)}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition border border-emerald-400/40 shadow-sm"
+                      title={`Export Excel for ${exportLabel} (${filteredAttendees.length} attendees)`}
+                    >
+                      <FaDownload size={11} /> Excel ({filteredAttendees.length})
+                    </button>
+                    <button
+                      onClick={closeAttendanceModal}
+                      className="rounded-full p-2 text-white/80 transition hover:bg-white/20 hover:text-white"
+                      title="Close"
+                    >
+                      <FaTimes size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content Body */}
+                <div className="p-6 overflow-y-auto space-y-6 flex-1">
+                  {/* KPI Summary Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-xl border border-stroke bg-gray-50/60 p-4 dark:border-strokedark dark:bg-meta-4/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Confirmed</span>
+                        <FaUsers className="text-primary/70" size={16} />
+                      </div>
+                      <p className="text-2xl font-black text-black dark:text-white">{confirmedCount}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">Capacity: {w.slots || "—"}</p>
+                    </div>
+
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Checked In</span>
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white">
+                          <FaCheck size={10} />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{checkedInCount}</p>
+                      <p className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5 font-semibold">Real Attendance</p>
+                    </div>
+
+                    <div className="rounded-xl border border-stroke bg-gray-50/60 p-4 dark:border-strokedark dark:bg-meta-4/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Pending Check-in</span>
+                        <FaClock className="text-amber-500" size={16} />
+                      </div>
+                      <p className="text-2xl font-black text-gray-700 dark:text-gray-200">{notCheckedInCount}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">Awaiting arrival</p>
+                    </div>
+
+                    <div className="rounded-xl border border-stroke bg-gray-50/60 p-4 dark:border-strokedark dark:bg-meta-4/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Check-in Rate</span>
+                        <span className="text-xs font-black text-primary">{checkInPct}%</span>
+                      </div>
+                      <p className="text-2xl font-black text-primary">{checkInPct}%</p>
+                      <div className="w-full bg-gray-200 dark:bg-meta-4 h-1.5 rounded-full mt-2 overflow-hidden">
+                        <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${checkInPct}%` }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filter and Search Bar */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    {/* Status Tabs */}
+                    <div className="flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-meta-4 rounded-xl">
+                      <button
+                        onClick={() => setAttendanceStatusFilter("all")}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                          attendanceStatusFilter === "all"
+                            ? "bg-white text-black shadow-sm dark:bg-boxdark dark:text-white"
+                            : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                        }`}
+                      >
+                        All ({confirmedCount})
+                      </button>
+                      <button
+                        onClick={() => setAttendanceStatusFilter("checked")}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                          attendanceStatusFilter === "checked"
+                            ? "bg-emerald-500 text-white shadow-sm"
+                            : "text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400"
+                        }`}
+                      >
+                        Checked In ({checkedInCount})
+                      </button>
+                      <button
+                        onClick={() => setAttendanceStatusFilter("unchecked")}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                          attendanceStatusFilter === "unchecked"
+                            ? "bg-white text-black shadow-sm dark:bg-boxdark dark:text-white"
+                            : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                        }`}
+                      >
+                        Not Checked In ({notCheckedInCount})
+                      </button>
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="relative flex-1 sm:max-w-xs">
+                      <input
+                        type="text"
+                        value={attendanceSearchQuery}
+                        onChange={(e) => setAttendanceSearchQuery(e.target.value)}
+                        placeholder="Search by name, email, phone..."
+                        className="w-full rounded-xl border border-stroke bg-white px-3.5 py-2 text-xs font-medium outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-strokedark dark:bg-boxdark dark:text-white shadow-sm"
+                      />
+                      {attendanceSearchQuery && (
+                        <button
+                          onClick={() => setAttendanceSearchQuery("")}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white"
+                        >
+                          <FaTimes size={10} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Attendees List / Table */}
+                  {filteredAttendees.length === 0 ? (
+                    <div className="rounded-2xl border-2 border-dashed border-stroke dark:border-strokedark py-12 text-center">
+                      <FaUsers size={32} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                      <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                        {confirmedCount === 0
+                          ? "No confirmed attendees registered for this workshop yet"
+                          : "No attendees match your current search/filter"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-stroke dark:border-strokedark">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-gray-50 dark:bg-meta-4 border-b border-stroke dark:border-strokedark text-gray-500 font-bold uppercase text-[10px]">
+                          <tr>
+                            <th className="py-3 px-4">#</th>
+                            <th className="py-3 px-4">Attendee</th>
+                            <th className="py-3 px-4">Contact</th>
+                            <th className="py-3 px-4">Check-in Status</th>
+                            <th className="py-3 px-4">Checked In At</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stroke dark:divide-strokedark bg-white dark:bg-boxdark">
+                          {filteredAttendees.map((att, idx) => (
+                            <tr
+                              key={att._id || idx}
+                              className={`transition hover:bg-gray-50 dark:hover:bg-meta-4/30 ${
+                                att.checkedIn ? "bg-emerald-50/20 dark:bg-emerald-950/10" : ""
+                              }`}
+                            >
+                              <td className="py-3.5 px-4 font-mono text-gray-400 text-[11px]">{idx + 1}</td>
+                              <td className="py-3.5 px-4">
+                                <div className="flex items-center gap-3">
+                                  {att.instapayImage ? (
+                                    <a
+                                      href={att.instapayImage}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-stroke dark:border-strokedark hover:scale-105 transition"
+                                      title="View payment proof"
+                                    >
+                                      <img
+                                        src={att.instapayImage}
+                                        alt={att.name}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    </a>
+                                  ) : (
+                                    <div className="h-10 w-10 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                      {att.name ? att.name.charAt(0).toUpperCase() : "A"}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <p className="font-bold text-black dark:text-white text-sm">{att.name}</p>
+                                    {att.checkInToken && (
+                                      <span className="font-mono text-[10px] text-gray-400 bg-gray-100 dark:bg-meta-4 px-1.5 py-0.5 rounded">
+                                        Token: {att.checkInToken}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <p className="font-medium text-gray-700 dark:text-gray-300">{att.email}</p>
+                                <p className="text-gray-400 text-[11px]">{att.phone}</p>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                {att.checkedIn ? (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-300 dark:border-emerald-700 px-3 py-1 text-xs font-black text-emerald-700 dark:text-emerald-300 shadow-sm">
+                                    <FaCheck size={10} /> Checked In
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-meta-4 border border-gray-200 dark:border-strokedark px-3 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                                    Not Checked In
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                {att.checkedIn && att.checkedInAt ? (
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                    <FaClock size={11} className="shrink-0 opacity-80" />
+                                    <span>{fmtDateTime(att.checkedInAt)}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 italic">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="shrink-0 border-t border-stroke bg-gray-50 dark:border-strokedark dark:bg-meta-4 p-4 px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Showing <span className="font-bold text-black dark:text-white">{filteredAttendees.length}</span> of{" "}
+                    <span className="font-bold text-black dark:text-white">{confirmedCount}</span> confirmed attendees
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                    <button
+                      onClick={() => generateAttendancePDF(w, filteredAttendees, exportLabel)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-stroke bg-white hover:bg-gray-100 dark:border-strokedark dark:bg-boxdark dark:hover:bg-meta-4 px-3.5 py-2 text-xs font-bold text-gray-700 dark:text-gray-200 transition shadow-sm"
+                      title={`Download PDF for ${exportLabel}`}
+                    >
+                      <FaDownload size={11} className="text-red-500" />
+                      <span>Download PDF ({exportLabel} - {filteredAttendees.length})</span>
+                    </button>
+                    <button
+                      onClick={() => exportAttendanceExcel(w, filteredAttendees, exportLabel)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 transition shadow-sm"
+                      title={`Export Excel for ${exportLabel}`}
+                    >
+                      <FaDownload size={11} className="text-emerald-600" />
+                      <span>Export Excel ({exportLabel} - {filteredAttendees.length})</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const targetW = w;
+                        closeAttendanceModal();
+                        openView(targetW, "attendance");
+                      }}
+                      className="rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary px-3.5 py-2 text-xs font-bold transition"
+                    >
+                      Open Full Details
+                    </button>
+                    <button
+                      onClick={closeAttendanceModal}
+                      className="rounded-xl bg-gray-200 hover:bg-gray-300 dark:bg-boxdark dark:hover:bg-strokedark px-4 py-2 text-xs font-bold text-gray-800 dark:text-gray-200 transition"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       </div>
       <style jsx global>{`
