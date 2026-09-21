@@ -157,6 +157,7 @@ interface IWorkshopPackage {
   maxWorkshops: number;
   isAllWorkshopsIncluded: boolean;
   includedWorkshops: string[];
+  fixedWorkshops?: string[];
   description: string;
   createdAt: string;
   updatedAt: string;
@@ -321,6 +322,7 @@ const emptyPackage = (): Partial<IWorkshopPackage> => ({
   maxWorkshops: 1,
   isAllWorkshopsIncluded: false,
   includedWorkshops: [],
+  fixedWorkshops: [],
   description: "",
 });
 
@@ -1955,6 +1957,11 @@ export default function WorkshopsPage() {
                         <span className="px-2.5 py-1 bg-gray-100 dark:bg-boxdark rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300">
                           {pkg.isAllWorkshopsIncluded ? "All Workshops" : `${pkg.includedWorkshops.length} Specific Workshops`}
                         </span>
+                        {pkg.fixedWorkshops && pkg.fixedWorkshops.length > 0 && (
+                          <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg text-xs font-semibold">
+                            {pkg.fixedWorkshops.length} Fixed
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-gray-500 line-clamp-2 flex-1">{pkg.description}</p>
 
@@ -4061,6 +4068,51 @@ export default function WorkshopsPage() {
                   <Field label="Total Allowed Workshops (Max for user)" required>
                     <input type="number" min={1} value={currentPkg.maxWorkshops ?? 1} onChange={(e) => setPkgField("maxWorkshops", Number(e.target.value))} className={inputCls(false)} />
                   </Field>
+                </div>
+
+                <div className="border border-stroke dark:border-strokedark rounded-xl p-5 bg-gray-50 dark:bg-meta-4 mt-2">
+                  <div className="flex flex-col gap-1 mb-3">
+                    <span className="font-bold text-sm text-black dark:text-white">Fixed / Mandatory Workshops</span>
+                    <span className="text-xs text-gray-500">
+                      Workshops checked here are automatically included and locked in the package. They count towards the user's total allowed ({currentPkg.maxWorkshops ?? 1}).
+                    </span>
+                  </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                    {allWorkshops.length === 0 ? (
+                      <span className="text-xs text-gray-500">No workshops available</span>
+                    ) : (
+                      allWorkshops.map((w) => {
+                        const isFixed = (currentPkg.fixedWorkshops || []).includes(w._id);
+                        return (
+                          <label key={w._id} className="flex flex-row items-center gap-2 cursor-pointer text-sm">
+                            <input
+                              type="checkbox"
+                              checked={isFixed}
+                              onChange={(e) => {
+                                const arr = [...(currentPkg.fixedWorkshops || [])];
+                                if (e.target.checked) {
+                                  arr.push(w._id);
+                                  if (!currentPkg.isAllWorkshopsIncluded) {
+                                    const incArr = [...(currentPkg.includedWorkshops || [])];
+                                    if (!incArr.includes(w._id)) {
+                                      incArr.push(w._id);
+                                      setPkgField("includedWorkshops", incArr);
+                                    }
+                                  }
+                                } else {
+                                  const idx = arr.indexOf(w._id);
+                                  if (idx > -1) arr.splice(idx, 1);
+                                }
+                                setPkgField("fixedWorkshops", arr);
+                              }}
+                              className="w-4 h-4 accent-primary"
+                            />
+                            <span className={isFixed ? "font-semibold text-primary" : ""}>{w.title}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
 
                 <div className="border border-stroke dark:border-strokedark rounded-xl p-5 bg-gray-50 dark:bg-meta-4 mt-2">
