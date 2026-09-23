@@ -2,13 +2,13 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IFormSubmission extends Document {
   formType:
-    | "join_team"
-    | "contact"
-    | "partner"
-    | "share_news"
-    | "join_good_project"
-    | "testimonial"
-        | "be_facilitator";
+  | "join_team"
+  | "contact"
+  | "partner"
+  | "share_news"
+  | "join_good_project"
+  | "testimonial"
+  | "be_facilitator";
 
   status: "pending" | "reviewed" | "archived";
 
@@ -34,6 +34,8 @@ export interface IFormSubmission extends Document {
   industry?: string;
   collaborationIdea?: string;
   campaignDetails?: string;
+  product?: string;
+  interestedProducts?: string[];
   socialMediaAccounts?: string;
   contactNumber?: string;
   contactMethod?: string[];
@@ -54,7 +56,7 @@ export interface IFormSubmission extends Document {
   teamPhotoUrl?: string;
   projectPageLink?: string;
   teamInstagramLinks?: string[];
-    graduationMonth?: string;
+  graduationMonth?: string;
   graduationDate?: Date;
 
 
@@ -72,7 +74,7 @@ export interface IFormSubmission extends Document {
   testimonialComment?: string;
   agreeToShare?: boolean;
 
-    // Be Facilitator Fields
+  // Be Facilitator Fields
   instagramHandle?: string;
   expertiseArea?: string;
   currentRole?: string;
@@ -104,7 +106,7 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
         "share_news",
         "join_good_project",
         "testimonial",
-                "be_facilitator",
+        "be_facilitator",
 
       ],
       index: true,
@@ -137,6 +139,8 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
     industry: { type: String },
     collaborationIdea: { type: String },
     campaignDetails: { type: String },
+    product: { type: String },
+    interestedProducts: { type: [String] },
     socialMediaAccounts: { type: String },
     contactNumber: { type: String },
     contactMethod: { type: [String] },
@@ -174,7 +178,7 @@ const FormSubmissionSchema = new Schema<IFormSubmission>(
     testimonialComment: { type: String },
     agreeToShare: { type: Boolean },
 
-        // Be Facilitator
+    // Be Facilitator
     instagramHandle: { type: String },
     expertiseArea: { type: String },
     currentRole: { type: String },

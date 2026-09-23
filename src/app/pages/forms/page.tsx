@@ -36,6 +36,8 @@ type FormSubmission = {
   industry?: string;
   collaborationIdea?: string;
   campaignDetails?: string;
+  product?: string;
+  interestedProducts?: string[];
   socialMediaAccounts?: string;
 
   contactNumber?: string;
@@ -171,6 +173,13 @@ export default function FormsPage() {
         ...common,
         { key: "businessName", label: "Business Name" },
         { key: "industry", label: "Industry" },
+        {
+          label: "Interested Products",
+          compute: (s) =>
+            s.interestedProducts && s.interestedProducts.length > 0
+              ? s.interestedProducts.join(", ")
+              : s.product || "",
+        },
         { key: "collaborationIdea", label: "Collaboration Idea" },
         { key: "campaignDetails", label: "Campaign Details" },
         { key: "socialMediaAccounts", label: "Social Media Accounts" },
@@ -928,6 +937,30 @@ export default function FormsPage() {
               </div>
               <div className="mb-3">
                 <label className="mb-1 block text-sm font-medium">
+                  Interested Products
+                </label>
+                {Array.isArray(current.interestedProducts) &&
+                  current.interestedProducts.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 py-1">
+                    {current.interestedProducts.map((prod, idx) => (
+                      <span
+                        key={idx}
+                        className="rounded-full bg-secondary/10 px-3 py-1 text-sm font-medium text-secondary border border-secondary/20"
+                      >
+                        {prod}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <input
+                    value={current.product || "-"}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                )}
+              </div>
+              {/* <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium">
                   Collaboration Idea
                 </label>
                 <textarea
@@ -935,7 +968,7 @@ export default function FormsPage() {
                   readOnly
                   className="w-full rounded border p-2"
                 />
-              </div>
+              </div> */}
               <div className="mb-3">
                 <label className="mb-1 block text-sm font-medium">
                   Campaign Details
@@ -946,23 +979,25 @@ export default function FormsPage() {
                   className="w-full rounded border p-2"
                 />
               </div>
-              <div className="mb-3">
-                <label className="mb-1 block text-sm font-medium">
-                  Social Media Accounts
-                </label>
-                <input
-                  value={current.socialMediaAccounts || ""}
-                  readOnly
-                  className="w-full rounded border p-2"
-                />
-              </div>
+              {current.socialMediaAccounts ? (
+                <div className="mb-3">
+                  <label className="mb-1 block text-sm font-medium">
+                    Social Media Accounts
+                  </label>
+                  <input
+                    value={current.socialMediaAccounts || ""}
+                    readOnly
+                    className="w-full rounded border p-2"
+                  />
+                </div>
+              ) : null}
 
               <div className="mb-3">
                 <label className="mb-1 block text-sm font-medium">
                   Contact Number
                 </label>
                 <input
-                  value={current.contactNumber || ""}
+                  value={current.contactNumber || current.phoneNumber || ""}
                   readOnly
                   className="w-full rounded border p-2"
                 />
@@ -983,6 +1018,34 @@ export default function FormsPage() {
             <>
               {renderField("businessName", "Business Name")}
               {renderField("industry", "Industry")}
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium">
+                  Interested Products (Comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={
+                    Array.isArray(current.interestedProducts) &&
+                      current.interestedProducts.length > 0
+                      ? current.interestedProducts.join(", ")
+                      : current.product || ""
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const items = val
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    setCurrent((prev) => ({
+                      ...prev,
+                      interestedProducts: items,
+                      product: val,
+                    }));
+                  }}
+                  placeholder="e.g. News & Features, Forsa Helwa, Media Studio"
+                  className="w-full rounded border p-2"
+                />
+              </div>
               {renderField(
                 "collaborationIdea",
                 "Collaboration Idea",
@@ -1023,7 +1086,7 @@ export default function FormsPage() {
             <div className="mb-3">
               <label className="mb-1 block text-sm font-medium">Media</label>
               {Array.isArray(current.mediaUrls) &&
-              current.mediaUrls.length > 0 ? (
+                current.mediaUrls.length > 0 ? (
                 <MediaThumbList urls={current.mediaUrls} />
               ) : (
                 <p className="text-sm text-gray-500">No media</p>
@@ -1033,7 +1096,7 @@ export default function FormsPage() {
             <>
               {renderField("mediaUrls", "Media")}
               {Array.isArray(current.mediaUrls) &&
-              current.mediaUrls.length > 0 ? (
+                current.mediaUrls.length > 0 ? (
                 <div className="mt-2">
                   <MediaThumbList
                     urls={current.mediaUrls}
@@ -1194,7 +1257,7 @@ export default function FormsPage() {
                   Team Instagram Links
                 </label>
                 {Array.isArray(current.teamInstagramLinks) &&
-                current.teamInstagramLinks.length > 0 ? (
+                  current.teamInstagramLinks.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {current.teamInstagramLinks.map((link, idx) => (
                       <a
@@ -1844,9 +1907,8 @@ export default function FormsPage() {
     const isActive = sortBy === sortKey;
     return (
       <th
-        className={`cursor-pointer border p-2 transition-colors hover:bg-secondary/90 ${
-          isActive ? "bg-secondary/90" : ""
-        }`}
+        className={`cursor-pointer border p-2 transition-colors hover:bg-secondary/90 ${isActive ? "bg-secondary/90" : ""
+          }`}
         onClick={() => {
           setPage(1);
           if (isActive) {
@@ -1901,11 +1963,10 @@ export default function FormsPage() {
                 setPage(1);
                 setExtraFilters({});
               }}
-              className={`rounded-t-lg px-6 py-2 text-sm font-medium transition-all ${
-                filterType === tab.value
+              className={`rounded-t-lg px-6 py-2 text-sm font-medium transition-all ${filterType === tab.value
                   ? "bg-white text-secondary shadow-[0_-2px_10px_rgba(0,0,0,0.05)]"
                   : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -2065,6 +2126,15 @@ export default function FormsPage() {
                         className="w-full rounded border px-3 py-2 text-sm"
                       />
                     </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Product</label>
+                      <input
+                        value={extraFilters.product || ""}
+                        onChange={(e) => setExtraFilters({ ...extraFilters, product: e.target.value })}
+                        placeholder="Filter by product..."
+                        className="w-full rounded border px-3 py-2 text-sm"
+                      />
+                    </div>
                   </>
                 )}
                 {filterType === "join_good_project" && (
@@ -2204,6 +2274,7 @@ export default function FormsPage() {
                   <SortableHeader label="Name" sortKey="name" />
                   <SortableHeader label="Email" sortKey="email" />
                   {filterType === "join_team" && <SortableHeader label="Role" sortKey="resumeAs" />}
+                  {filterType === "partner" && <th className="border p-2">Products</th>}
                   {filterType === "join_good_project" && (
                     <>
                       <th className="border p-2">Project</th>
@@ -2255,6 +2326,21 @@ export default function FormsPage() {
                       <td className="border p-2">{item.name || "-"}</td>
                       <td className="border p-2">{item.email || "-"}</td>
                       {filterType === "join_team" && <td className="border p-2">{item.resumeAs || "-"}</td>}
+                      {filterType === "partner" && (
+                        <td
+                          className="border p-2 max-w-xs truncate"
+                          title={
+                            item.interestedProducts?.join(", ") ||
+                            item.product ||
+                            "-"
+                          }
+                        >
+                          {item.interestedProducts &&
+                            item.interestedProducts.length > 0
+                            ? item.interestedProducts.join(", ")
+                            : item.product || "-"}
+                        </td>
+                      )}
                       {filterType === "join_good_project" && (
                         <>
                           <td className="border p-2">{item.projectName || "-"}</td>
@@ -2381,43 +2467,41 @@ export default function FormsPage() {
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      {current.formType === "partner" ? "Contact Person Name" : "Name"}
+                    </label>
+                    <input
+                      value={current.name || ""}
+                      readOnly
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      {current.formType === "partner" ? "Contact Person Email" : "Email"}
+                    </label>
+                    <input
+                      value={current.email || ""}
+                      readOnly
+                      className="w-full rounded border p-2"
+                    />
+                  </div>
+                </div>
                 {current.formType !== "partner" && (
-                  <>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-sm font-medium">
-                          Name
-                        </label>
-                        <input
-                          value={current.name || ""}
-                          readOnly
-                          className="w-full rounded border p-2"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-sm font-medium">
-                          Email
-                        </label>
-                        <input
-                          value={current.email || ""}
-                          readOnly
-                          className="w-full rounded border p-2"
-                        />
-                      </div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">
+                        Phone
+                      </label>
+                      <input
+                        value={current.phoneNumber || ""}
+                        readOnly
+                        className="w-full rounded border p-2"
+                      />
                     </div>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-sm font-medium">
-                          Phone
-                        </label>
-                        <input
-                          value={current.phoneNumber || ""}
-                          readOnly
-                          className="w-full rounded border p-2"
-                        />
-                      </div>
-                    </div>
-                  </>
+                  </div>
                 )}
                 <div className="mt-2">{formSpecificFields()}</div>
               </div>
@@ -2476,16 +2560,20 @@ export default function FormsPage() {
                     </select>
                   </div>
                 </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {renderField(
+                    "name",
+                    current.formType === "partner" ? "Contact Person Name" : "Name",
+                  )}
+                  {renderField(
+                    "email",
+                    current.formType === "partner" ? "Contact Person Email" : "Email",
+                  )}
+                </div>
                 {current.formType !== "partner" && (
-                  <>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {renderField("name", "Name")}
-                      {renderField("email", "Email")}
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {renderField("phoneNumber", "Phone")}
-                    </div>
-                  </>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {renderField("phoneNumber", "Phone")}
+                  </div>
                 )}
                 <div className="mt-2">{formSpecificFields()}</div>
                 <div className="mt-4 flex justify-end gap-2">
@@ -2526,7 +2614,7 @@ export default function FormsPage() {
             {viewerUrl ? (
               <div className="min-h-0 flex-1">
                 {viewerType === "image" ||
-                (!viewerType && isImage(viewerUrl)) ? (
+                  (!viewerType && isImage(viewerUrl)) ? (
                   <div className="relative h-full w-full overflow-hidden rounded border">
                     <img
                       src={viewerUrl}

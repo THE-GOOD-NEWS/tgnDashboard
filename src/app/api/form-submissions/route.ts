@@ -39,6 +39,7 @@ export async function GET(req: Request) {
       "subject",
       "industry",
       "businessName",
+      "product",
       "university",
       "faculty",
       "projectCategory",
